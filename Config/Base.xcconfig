@@ -1,0 +1,22 @@
+// Shared build settings for every target. Local, machine-specific overrides
+// (your Apple Developer team id) go in Config/Local.xcconfig, which is git-ignored.
+// Copy Config/Local.xcconfig.example to get started.
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+MACOSX_DEPLOYMENT_TARGET = 26.0
+SWIFT_VERSION = 6.0
+GENERATE_INFOPLIST_FILE = NO
+
+// Distributed outside the Mac App Store: hardened runtime on, App Sandbox off.
+ENABLE_HARDENED_RUNTIME = YES
+ENABLE_APP_SANDBOX = NO
+
+// Both targets must be signed with the same identity, and never ad hoc:
+// macOS ties privacy permissions to the signature.
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

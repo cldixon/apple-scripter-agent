@@ -1,0 +1,62 @@
+# XcodeGen spec. Run `make project` (or `xcodegen generate`) to produce AutomationAgent.xcodeproj.
+name: AutomationAgent
+options:
+  bundleIdPrefix: dev.cldixon
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+packages:
+  Shared:
+    path: Shared
+targets:
+  AutomationAgent:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Sources
+      - path: App/LaunchAgents/dev.cldixon.AutomationAgent.Runner.plist
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Library/LaunchAgents
+    dependencies:
+      - package: Shared
+      - target: AutomationAgentRunner
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Library/LoginItems
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.cldixon.AutomationAgent
+        PRODUCT_NAME: AutomationAgent
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/AutomationAgent.entitlements
+  AutomationAgentRunner:
+    type: application
+    platform: macOS
+    sources:
+      - path: Runner/Sources
+    dependencies:
+      - package: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.cldixon.AutomationAgent.Runner
+        PRODUCT_NAME: AutomationAgentRunner
+        INFOPLIST_FILE: Runner/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Runner/Runner.entitlements
+        SKIP_INSTALL: YES
+schemes:
+  AutomationAgent:
+    build:
+      targets:
+        AutomationAgent: all
+        AutomationAgentRunner: all
+    run:
+      config: Debug
+    archive:
+      config: Release
