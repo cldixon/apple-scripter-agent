@@ -159,10 +159,10 @@ final class RunnerCore {
             return .runs(store.recentRuns(limit: limit))
         case .setPaused(let paused):
             state.isPaused = paused
-            return .ok
+            return .done
         case .requestAccessibility:
             SystemActions.requestAccessibility()
-            return .ok
+            return .done
         }
     }
 

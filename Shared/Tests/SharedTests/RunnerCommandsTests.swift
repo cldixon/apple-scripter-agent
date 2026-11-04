@@ -64,7 +64,7 @@ struct RunnerCommandsTests {
                 results: [.init(name: "tests[0] unit, step 0", passed: true, message: "Got \"\"")]
             )),
             .runs([Self.sampleRecord]),
-            .ok,
+            .done,
             .failure("Something went wrong")
         ]
         for reply in replies {

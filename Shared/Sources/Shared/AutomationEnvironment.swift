@@ -46,8 +46,8 @@ public enum AutomationError: Error, Equatable, LocalizedError {
 
 /// A fake environment with a fixed clock that records what steps did instead of doing it.
 public actor RecordingEnvironment: AutomationEnvironment {
-    public nonisolated let fixedNow: Date
-    public nonisolated let fixedTimeZone: TimeZone
+    nonisolated public let fixedNow: Date
+    nonisolated public let fixedTimeZone: TimeZone
     public private(set) var typed: [String] = []
     public private(set) var pasted: [String] = []
     public private(set) var clipboard: String
@@ -62,8 +62,8 @@ public actor RecordingEnvironment: AutomationEnvironment {
         self.clipboard = clipboard
     }
 
-    public nonisolated func now() -> Date { fixedNow }
-    public nonisolated func timeZone() -> TimeZone { fixedTimeZone }
+    nonisolated public func now() -> Date { fixedNow }
+    nonisolated public func timeZone() -> TimeZone { fixedTimeZone }
     public func typeText(_ text: String) { typed.append(text) }
     public func pasteText(_ text: String) { pasted.append(text) }
     public func readClipboard() -> String { clipboard }

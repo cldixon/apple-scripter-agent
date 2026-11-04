@@ -24,7 +24,7 @@ public enum RunnerReply: Codable, Sendable, Equatable {
     case ran(RunRecord)
     case tested(TestReport)
     case runs([RunRecord])
-    case ok
+    case done
     case failure(String)
 }
 

@@ -111,7 +111,7 @@ final class CatalogController {
             message = report.passed ? "All tests passed for \(report.automationID)." : "Some tests failed."
         case .runs(let runs):
             recentRuns = runs
-        case .ok:
+        case .done:
             break
         case .failure(let text):
             message = text

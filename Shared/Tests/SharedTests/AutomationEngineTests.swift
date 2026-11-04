@@ -193,7 +193,7 @@ struct AutomationEngineTests {
         let example = try dateExample()
         let results = await UnitTestRunner.run(example)
         #expect(results.count == 2)
-        #expect(results.allSatisfy(\.passed), "\(results)")
+        #expect(results.allSatisfy { $0.passed }, "\(results)")
     }
 
     @Test func wrongExpectationFails() async {

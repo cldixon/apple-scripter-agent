@@ -31,6 +31,13 @@ line_length:
   error: 160
   ignores_comments: true
 
+cyclomatic_complexity:
+  # Enum-dispatch switches (one case per step type or command) are the main source.
+  ignores_case_statements: true
+
+nesting:
+  type_level: 2
+
 identifier_name:
   excluded:
     - id
