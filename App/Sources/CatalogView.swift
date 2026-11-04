@@ -1,8 +1,8 @@
 import Shared
 import SwiftUI
 
-/// Installed automations: a list on the left, the selected one on the right.
-/// Early version (M1): install from a file, run, test, remove. M3 adds versions and search.
+/// Installed automations: a searchable list on the left, the selected one on the right,
+/// with its versions (from the catalog's git history), tests and recent runs.
 struct CatalogView: View {
     @Environment(CatalogController.self) private var catalog
 
@@ -12,25 +12,15 @@ struct CatalogView: View {
             if let message = catalog.message {
                 Text(message)
                     .font(.callout)
+                    .textSelection(.enabled)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.quaternary)
             }
             HSplitView {
-                List(catalog.automations, selection: $catalog.selection) { automation in
-                    AutomationRow(automation: automation)
-                }
-                .frame(minWidth: 220, idealWidth: 260)
-                .overlay {
-                    if catalog.automations.isEmpty {
-                        ContentUnavailableView(
-                            "No automations",
-                            systemImage: "tray",
-                            description: Text("Install the date example or a manifest.json from the toolbar.")
-                        )
-                    }
-                }
+                AutomationList()
+                    .frame(minWidth: 220, idealWidth: 260)
                 Group {
                     if let automation = catalog.selected {
                         AutomationDetail(automation: automation)
@@ -54,7 +44,46 @@ struct CatalogView: View {
                 Button("Refresh", systemImage: "arrow.clockwise") { Task { await catalog.refresh() } }
             }
         }
+        .sheet(item: $catalog.diffSheet) { sheet in
+            DiffSheetView(sheet: sheet)
+        }
         .task { await catalog.refresh() }
+    }
+}
+
+/// Search field and status filter above the list of automations.
+private struct AutomationList: View {
+    @Environment(CatalogController.self) private var catalog
+
+    var body: some View {
+        @Bindable var catalog = catalog
+        VStack(spacing: 0) {
+            VStack(spacing: 6) {
+                TextField("Search", text: $catalog.searchText)
+                    .textFieldStyle(.roundedBorder)
+                Picker("Status", selection: $catalog.statusFilter) {
+                    Text("All").tag(AutomationStatus?.none)
+                    ForEach(AutomationStatus.allCases) { status in
+                        Text(status.displayName).tag(AutomationStatus?.some(status))
+                    }
+                }
+            }
+            .padding(8)
+            List(catalog.filteredAutomations, selection: $catalog.selection) { automation in
+                AutomationRow(automation: automation)
+            }
+            .overlay {
+                if catalog.automations.isEmpty {
+                    ContentUnavailableView(
+                        "No automations",
+                        systemImage: "tray",
+                        description: Text("Install the date example or a manifest.json from the toolbar.")
+                    )
+                } else if catalog.filteredAutomations.isEmpty {
+                    ContentUnavailableView.search(text: catalog.searchText)
+                }
+            }
+        }
     }
 }
 
@@ -65,15 +94,24 @@ private struct AutomationRow: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
                 Circle()
-                    .fill(automation.isActive ? Color.green : Color.orange)
+                    .fill(statusColor)
                     .frame(width: 8, height: 8)
                 Text(automation.name)
             }
-            Text(automation.trigger)
+            Text("\(automation.trigger) · \(automation.status.displayName)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .tag(automation.id)
+    }
+
+    private var statusColor: Color {
+        switch automation.status {
+        case .active: .green
+        case .disabled: .gray
+        case .broken: .red
+        case .draft, .validating, .awaitingApproval: .orange
+        }
     }
 }
 
@@ -86,6 +124,11 @@ private struct AutomationDetail: View {
             Section {
                 LabeledContent("Trigger", value: automation.trigger)
                 LabeledContent("Status", value: statusText)
+                Toggle("Enabled", isOn: Binding(
+                    get: { automation.isEnabled },
+                    set: { enabled in Task { await catalog.setEnabled(automation.id, enabled: enabled) } }
+                ))
+                .disabled(catalog.busyWith != nil)
                 LabeledContent("Steps", value: automation.stepTypes.joined(separator: " → "))
                 LabeledContent(
                     "Permissions",
@@ -119,51 +162,122 @@ private struct AutomationDetail: View {
             }
 
             if !automation.issues.isEmpty {
-                Section("Validation") {
-                    ForEach(automation.issues, id: \.self) { issue in
-                        Label(
-                            "\(issue.location): \(issue.message)",
-                            systemImage: issue.severity == .error ? "xmark.octagon" : "exclamationmark.triangle"
-                        )
-                        .foregroundStyle(issue.severity == .error ? .red : .primary)
-                    }
-                }
+                ValidationSection(issues: automation.issues)
             }
-
-            Section("Tests (\(automation.testCount) declared)") {
-                if let report = catalog.testReports[automation.id] {
-                    Text("Ran \(report.ranAt.formatted(date: .omitted, time: .standard))")
-                        .foregroundStyle(.secondary)
-                    ForEach(report.results) { result in
-                        Label(
-                            "\(result.name): \(result.message)",
-                            systemImage: result.passed ? "checkmark.circle" : "xmark.circle"
-                        )
-                        .foregroundStyle(result.passed ? Color.primary : Color.red)
-                    }
-                } else {
-                    Text("Not run yet. Harness tests open a small window and type into it.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section("Recent runs") {
-                let runs = catalog.runs(for: automation.id)
-                if runs.isEmpty {
-                    Text("No runs yet.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(runs.prefix(10)) { run in
-                        RunRow(run: run)
-                    }
-                }
-            }
+            VersionsSection(automation: automation)
+            TestsSection(automation: automation)
+            RecentRunsSection(runs: catalog.runs(for: automation.id))
         }
         .formStyle(.grouped)
+        .task(id: automation.id) { await catalog.loadHistory(automation.id) }
     }
 
     private var statusText: String {
-        if let error = automation.registrationError { return "Not active: \(error)" }
-        return automation.isActive ? "Active" : "Not active"
+        if automation.status == .broken, let error = automation.registrationError {
+            return "Broken: \(error)"
+        }
+        return automation.status.displayName
+    }
+}
+
+private struct ValidationSection: View {
+    let issues: [ValidationIssue]
+
+    var body: some View {
+        Section("Validation") {
+            ForEach(issues, id: \.self) { issue in
+                Label(
+                    "\(issue.location): \(issue.message)",
+                    systemImage: issue.severity == .error ? "xmark.octagon" : "exclamationmark.triangle"
+                )
+                .foregroundStyle(issue.severity == .error ? .red : .primary)
+            }
+        }
+    }
+}
+
+/// Committed versions, newest first, with diff and restore.
+private struct VersionsSection: View {
+    @Environment(CatalogController.self) private var catalog
+    let automation: AutomationSummary
+
+    var body: some View {
+        Section("Versions") {
+            let versions = catalog.versions[automation.id] ?? []
+            if let problem = catalog.historyProblem {
+                Text(problem).foregroundStyle(.secondary)
+            } else if versions.isEmpty {
+                Text("No version history yet.").foregroundStyle(.secondary)
+            }
+            ForEach(Array(versions.enumerated()), id: \.element.id) { position, version in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(version.version.map { "v\($0)" } ?? "—").bold()
+                        Text(version.message)
+                        Spacer()
+                        Text(version.shortHash).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    }
+                    Text(version.date.formatted(date: .abbreviated, time: .standard))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Button("Show diff") { Task { await catalog.showDiff(automation.id, version: version) } }
+                        if position > 0 {
+                            Button("Diff to latest") {
+                                Task { await catalog.showDiffToLatest(automation.id, version: version) }
+                            }
+                            if version.version != nil {
+                                Button("Restore this version") {
+                                    Task { await catalog.restore(automation.id, version: version) }
+                                }
+                            }
+                        }
+                    }
+                    .controlSize(.small)
+                    .disabled(catalog.busyWith != nil)
+                }
+            }
+        }
+    }
+}
+
+private struct TestsSection: View {
+    @Environment(CatalogController.self) private var catalog
+    let automation: AutomationSummary
+
+    var body: some View {
+        Section("Tests (\(automation.testCount) declared)") {
+            if let report = catalog.testReports[automation.id] {
+                Text("Ran \(report.ranAt.formatted(date: .omitted, time: .standard))")
+                    .foregroundStyle(.secondary)
+                ForEach(report.results) { result in
+                    Label(
+                        "\(result.name): \(result.message)",
+                        systemImage: result.passed ? "checkmark.circle" : "xmark.circle"
+                    )
+                    .foregroundStyle(result.passed ? Color.primary : Color.red)
+                }
+            } else {
+                Text("Not run yet. Harness tests open a small window and type into it.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct RecentRunsSection: View {
+    let runs: [RunRecord]
+
+    var body: some View {
+        Section("Recent runs") {
+            if runs.isEmpty {
+                Text("No runs yet.").foregroundStyle(.secondary)
+            } else {
+                ForEach(runs.prefix(10)) { run in
+                    RunRow(run: run)
+                }
+            }
+        }
     }
 }
 
@@ -186,5 +300,32 @@ private struct RunRow: View {
                 Text(error).font(.caption).foregroundStyle(.red)
             }
         }
+    }
+}
+
+/// A diff as monospaced, selectable text.
+private struct DiffSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+    let sheet: DiffSheet
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(sheet.title).font(.headline)
+            ScrollView([.vertical, .horizontal]) {
+                Text(sheet.text)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+            }
+            .background(.quaternary)
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding()
+        .frame(minWidth: 640, minHeight: 420)
     }
 }

@@ -13,7 +13,7 @@ final class RunnerAppDelegate: NSObject, NSApplicationDelegate {
     private var service: RunnerService?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        core.reload()
+        core.start()
 
         let service = RunnerService(core: core, startedAt: state.startedAt)
         let listener = NSXPCListener(machServiceName: Identifiers.runnerMachServiceName)

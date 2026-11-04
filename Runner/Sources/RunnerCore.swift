@@ -3,31 +3,55 @@ import os
 import Shared
 
 /// The runner's brain: loads installed automations, registers their triggers, runs them,
-/// runs their tests, and answers commands from the main app.
+/// runs their tests, and answers commands from the main app. Catalog changes (versioning,
+/// enable/disable, the SQLite index) are in `RunnerCore+Catalog.swift`.
 @MainActor
 final class RunnerCore {
     let state = RunnerState()
-    let store = AutomationStore(root: AutomationStore.defaultRoot())
+    let store: AutomationStore
+    /// The automations folder as a git repository. `prepare()` runs in `start()`.
+    var catalog: CatalogRepository
+    /// `catalog.sqlite`, or nil if it could not be opened.
+    var index: CatalogIndex?
 
+    let logger = Logger(subsystem: Identifiers.logSubsystem, category: "core")
     private let engine = AutomationEngine(environment: SystemEnvironment())
     private let hotkeys = HotkeyCenter()
     private let harness = HarnessController()
-    private let logger = Logger(subsystem: Identifiers.logSubsystem, category: "core")
 
-    private var manifests: [String: AutomationManifest] = [:]
-    private var registrationErrors: [String: String] = [:]
+    private(set) var manifests: [String: AutomationManifest] = [:]
+    private(set) var registrationErrors: [String: String] = [:]
     private var loadFailures: [String: String] = [:]
+    private var disabled: Set<String> = []
     private var running: Set<String> = []
 
-    /// Reads every manifest from disk and (re)registers triggers.
+    init() {
+        let store = AutomationStore(root: AutomationStore.defaultRoot())
+        self.store = store
+        catalog = CatalogRepository(store: store)
+    }
+
+    /// Prepares the catalog repository and index, then loads automations.
+    func start() {
+        catalog.prepare()
+        state.versioningProblem = catalog.versioningError
+        if let problem = catalog.versioningError {
+            logger.error("Catalog versioning is off: \(problem, privacy: .public)")
+        }
+        openIndex()
+        reload()
+    }
+
+    /// Reads every manifest from disk and (re)registers triggers of enabled automations.
     func reload() {
         hotkeys.unregisterAll()
         let loaded = store.loadAll()
         manifests = loaded.manifests.reduce(into: [:]) { $0[$1.id] = $1 }
         loadFailures = loaded.failures
+        disabled = catalog.disabledIDs()
         registrationErrors = [:]
 
-        for manifest in loaded.manifests {
+        for manifest in loaded.manifests where !disabled.contains(manifest.id) {
             guard !ManifestValidator.hasErrors(ManifestValidator.validate(manifest)) else {
                 registrationErrors[manifest.id] = "Not active: the manifest has validation errors."
                 continue
@@ -46,6 +70,7 @@ final class RunnerCore {
             logger.error("Could not load \(folder, privacy: .public): \(message, privacy: .public)")
         }
         state.automations = summaries()
+        syncIndex()
         logger.info("Loaded \(self.manifests.count) automations")
     }
 
@@ -73,6 +98,7 @@ final class RunnerCore {
         } catch {
             logger.error("Could not write the run log: \(error.localizedDescription, privacy: .public)")
         }
+        indexRun(record)
         state.record(record)
         return record
     }
@@ -81,13 +107,15 @@ final class RunnerCore {
         guard let manifest = manifests[id] else { return nil }
         let issues = ManifestValidator.validate(manifest)
         var results = await UnitTestRunner.run(manifest)
-        for (index, test) in manifest.tests.enumerated() {
+        for (position, test) in manifest.tests.enumerated() {
             guard case .harness(let harnessTest) = test else { continue }
-            results += await harness.run(harnessTest, name: "tests[\(index)] harness", manifest: manifest) {
+            results += await harness.run(harnessTest, name: "tests[\(position)] harness", manifest: manifest) {
                 await self.run(id: id, cause: .test)
             }
         }
-        return TestReport(automationID: id, ranAt: Date(), issues: issues, results: results)
+        let report = TestReport(automationID: id, ranAt: Date(), issues: issues, results: results)
+        indexTestReport(report, version: manifest.version)
+        return report
     }
 
     // MARK: Install
@@ -109,8 +137,9 @@ final class RunnerCore {
                 message: "Not installed: fix the errors below first."
             )
         }
+        let versioningWarning: String?
         do {
-            try store.install(manifest, sourceFolder: sourceFolder)
+            versioningWarning = try catalog.install(manifest, sourceFolder: sourceFolder)
         } catch {
             return InstallReport(
                 automationID: manifest.id, installed: false, issues: issues,
@@ -118,8 +147,9 @@ final class RunnerCore {
             )
         }
         reload()
-        let message = registrationErrors[manifest.id].map { "Installed, but not active: \($0)" }
+        var message = registrationErrors[manifest.id].map { "Installed, but not active: \($0)" }
             ?? "Installed \"\(manifest.name)\" (\(manifest.trigger.summary))."
+        if let versioningWarning { message += " \(versioningWarning)" }
         return InstallReport(automationID: manifest.id, installed: true, issues: issues, message: message)
     }
 
@@ -129,24 +159,10 @@ final class RunnerCore {
         switch command {
         case .listAutomations:
             return .automations(summaries(), paused: state.isPaused)
-        case .installFromFile(let path):
-            let url = URL(filePath: path)
-            do {
-                let data = try Data(contentsOf: url)
-                return .installed(install(manifestData: data, sourceFolder: url.deletingLastPathComponent()))
-            } catch {
-                return .failure("Could not read \(path): \(error.localizedDescription)")
-            }
-        case .installManifest(let data):
-            return .installed(install(manifestData: data, sourceFolder: nil))
-        case .remove(let id):
-            do {
-                try store.remove(id: id)
-                reload()
-                return .removed(id: id)
-            } catch {
-                return .failure("Could not remove \(id): \(error.localizedDescription)")
-            }
+        case .installFromFile, .installManifest, .remove, .setEnabled, .rebuildIndex:
+            return handleCatalogChange(command)
+        case .history, .diff, .rollback:
+            return handleVersionCommand(command)
         case .run(let id):
             guard let record = await run(id: id, cause: .manual) else {
                 return .failure("\(id) is not installed or is already running.")
@@ -174,7 +190,8 @@ final class RunnerCore {
                     manifest: manifest,
                     issues: ManifestValidator.validate(manifest),
                     registrationError: registrationErrors[manifest.id],
-                    folderPath: store.folder(for: manifest.id).path
+                    folderPath: store.folder(for: manifest.id).path,
+                    enabled: !disabled.contains(manifest.id)
                 )
             }
     }

@@ -3,11 +3,14 @@ import Foundation
 /// File-based storage for installed automations and the run log.
 ///
 /// ```
+/// <root>/automations/                     a git repository (see CatalogRepository)
 /// <root>/automations/<id>/manifest.json   (+ scripts/, tests/fixtures/)
+/// <root>/automations/state.json           which automations are disabled
+/// <root>/drafts/                          the agent's working area, not versioned
+/// <root>/catalog.sqlite                   the index (see CatalogIndex), rebuildable
 /// <root>/runs.jsonl                       one RunRecord per line
 /// ```
-/// The runner is the only writer. M3 turns `automations/` into a git repository and adds
-/// a SQLite index; the folder stays the source of truth.
+/// The runner is the only writer. The folders are the source of truth.
 public struct AutomationStore: Sendable {
     public let root: URL
 
@@ -22,6 +25,8 @@ public struct AutomationStore: Sendable {
 
     public var automationsDirectory: URL { root.appending(path: "automations", directoryHint: .isDirectory) }
     public var runLogURL: URL { root.appending(path: "runs.jsonl") }
+    public var draftsDirectory: URL { root.appending(path: "drafts", directoryHint: .isDirectory) }
+    public var indexURL: URL { root.appending(path: "catalog.sqlite") }
 
     public func folder(for id: String) -> URL {
         automationsDirectory.appending(path: id, directoryHint: .isDirectory)
@@ -92,6 +97,11 @@ public struct AutomationStore: Sendable {
         } else {
             try line.write(to: runLogURL, options: .atomic)
         }
+    }
+
+    /// Every run in the log, oldest first.
+    public func allRuns() -> [RunRecord] {
+        Array(recentRuns(limit: .max).reversed())
     }
 
     /// The most recent runs, newest first, optionally for one automation.
