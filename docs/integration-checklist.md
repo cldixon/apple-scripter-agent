@@ -33,8 +33,25 @@ on "AutomationAgentRunner" in System Settings > Privacy & Security > Accessibili
 - [ ] Recent runs on the Catalog screen lists those hotkey runs as succeeded.
 - [ ] Pause All (toolbar or gear menu), press ⌃⌥⌘D in TextEdit: nothing is typed. Unpause: it works again.
 - [ ] Quit the main app, press ⌃⌥⌘D in TextEdit: it still works (the runner owns the hotkey).
-- [ ] Install Manifest… with `Examples/copy-finder-paths/manifest.json`: it is refused with an
-      error that applescript steps are not supported yet (they arrive in M2).
 - [ ] Edit an installed manifest by hand to reference `{{missing}}`, choose Reload Automations from
       the gear menu: the Catalog shows it as not active with the validation error.
 - [ ] Remove: the automation disappears and ⌃⌥⌘D no longer types anything.
+
+## M2 — Script steps
+
+- [ ] Catalog > Install Manifest… > `Examples/copy-finder-paths/manifest.json`: installs, status Active.
+- [ ] Run Tests: "steps[0] compiles" passes.
+- [ ] Select two files in Finder, press ⌃⌥⌘C. The first time, macOS asks whether
+      **Automation Agent Runner** may control Finder (not Terminal or osascript). Allow it.
+      The clipboard now holds both POSIX paths, one per line.
+- [ ] Install `Examples/word-count-clipboard/manifest.json` (shell step), copy some text,
+      choose Run Now: a notification shows the word count.
+- [ ] Runner screen > Run Snippet (AppleScript): `tell application "Finder" to get name of every disk`
+      returns your disk names.
+- [ ] Snippet `delay 30` with timeout 3: it reports a timeout after about 3 seconds.
+- [ ] Edit an installed script to have a syntax error, Reload Automations, Run Tests: the compile
+      result fails with the compiler's message.
+- [ ] In System Settings > Privacy & Security > Automation, turn off Finder for the runner and press
+      ⌃⌥⌘C: the run fails with a message saying Automation permission is missing and where to allow it.
+- [ ] Build a second copy of the app with a different bundle id (or use `nc`/another tool) and try to
+      connect to the Mach service: the connection is refused.

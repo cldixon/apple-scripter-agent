@@ -28,7 +28,8 @@ final class RunnerCore {
         registrationErrors = [:]
 
         for manifest in loaded.manifests {
-            guard !ManifestValidator.hasErrors(ManifestValidator.validate(manifest)) else {
+            let issues = ManifestValidator.validate(manifest, folder: store.folder(for: manifest.id))
+            guard !ManifestValidator.hasErrors(issues) else {
                 registrationErrors[manifest.id] = "Not active: the manifest has validation errors."
                 continue
             }
@@ -66,7 +67,7 @@ final class RunnerCore {
             return nil
         }
         running.insert(id)
-        let record = await engine.run(manifest, cause: cause)
+        let record = await engine.run(manifest, cause: cause, folder: store.folder(for: id))
         running.remove(id)
         do {
             try store.appendRun(record)
@@ -79,8 +80,10 @@ final class RunnerCore {
 
     func test(id: String) async -> TestReport? {
         guard let manifest = manifests[id] else { return nil }
-        let issues = ManifestValidator.validate(manifest)
-        var results = await UnitTestRunner.run(manifest)
+        let folder = store.folder(for: id)
+        let issues = ManifestValidator.validate(manifest, folder: folder)
+        var results = await compileResults(manifest, folder: folder)
+        results += await UnitTestRunner.run(manifest, folder: folder)
         for (index, test) in manifest.tests.enumerated() {
             guard case .harness(let harnessTest) = test else { continue }
             results += await harness.run(harnessTest, name: "tests[\(index)] harness", manifest: manifest) {
@@ -92,7 +95,34 @@ final class RunnerCore {
 
     // MARK: Install
 
-    func install(manifestData: Data, sourceFolder: URL?) -> InstallReport {
+    /// Compiles every AppleScript/JXA step and syntax-checks every shell step.
+    func compileResults(_ manifest: AutomationManifest, folder: URL?) async -> [TestReport.Result] {
+        var results: [TestReport.Result] = []
+        for (index, step) in manifest.steps.enumerated() {
+            let language: ScriptLanguage
+            let source: ScriptSource
+            switch step.body {
+            case .applescript(let script): (language, source) = (.applescript, script)
+            case .jxa(let script): (language, source) = (.jxa, script)
+            case .shell(let script): (language, source) = (.shell, script)
+            default: continue
+            }
+            let name = "steps[\(index)] compiles"
+            guard let text = ManifestValidator.scriptText(source, folder: folder) else {
+                results.append(.init(name: name, passed: false, message: "The script could not be read."))
+                continue
+            }
+            do {
+                let errors = try await ScriptRunner.compile(language, source: text)
+                results.append(.init(name: name, passed: errors.isEmpty, message: errors.isEmpty ? "OK" : errors))
+            } catch {
+                results.append(.init(name: name, passed: false, message: error.localizedDescription))
+            }
+        }
+        return results
+    }
+
+    func install(manifestData: Data, sourceFolder: URL?) async -> InstallReport {
         let manifest: AutomationManifest
         do {
             manifest = try AutomationManifest.decode(from: manifestData)
@@ -102,7 +132,10 @@ final class RunnerCore {
                 message: "The manifest could not be read: \(Self.describe(error))"
             )
         }
-        let issues = ManifestValidator.validate(manifest)
+        var issues = ManifestValidator.validate(manifest, folder: sourceFolder)
+        for failure in await compileResults(manifest, folder: sourceFolder) where !failure.passed {
+            issues.append(ValidationIssue(.error, failure.name, failure.message))
+        }
         guard !ManifestValidator.hasErrors(issues) else {
             return InstallReport(
                 automationID: manifest.id, installed: false, issues: issues,
@@ -133,12 +166,12 @@ final class RunnerCore {
             let url = URL(filePath: path)
             do {
                 let data = try Data(contentsOf: url)
-                return .installed(install(manifestData: data, sourceFolder: url.deletingLastPathComponent()))
+                return .installed(await install(manifestData: data, sourceFolder: url.deletingLastPathComponent()))
             } catch {
                 return .failure("Could not read \(path): \(error.localizedDescription)")
             }
         case .installManifest(let data):
-            return .installed(install(manifestData: data, sourceFolder: nil))
+            return .installed(await install(manifestData: data, sourceFolder: nil))
         case .remove(let id):
             do {
                 try store.remove(id: id)
@@ -163,6 +196,24 @@ final class RunnerCore {
         case .requestAccessibility:
             SystemActions.requestAccessibility()
             return .done
+        case .runSnippet, .compile:
+            return await handleScriptCommand(command)
+        }
+    }
+
+    private func handleScriptCommand(_ command: RunnerCommand) async -> RunnerReply {
+        do {
+            switch command {
+            case .runSnippet(let language, let source, let timeout):
+                let request = ScriptRequest(language: language, source: source, timeout: min(max(timeout, 1), 120))
+                return .snippet(try await ScriptRunner.execute(request))
+            case .compile(let language, let source):
+                return .compiled(errors: try await ScriptRunner.compile(language, source: source))
+            default:
+                return .failure("Not a script command.")
+            }
+        } catch {
+            return .failure("The script could not run: \(error.localizedDescription)")
         }
     }
 
@@ -172,7 +223,7 @@ final class RunnerCore {
             .map { manifest in
                 AutomationSummary(
                     manifest: manifest,
-                    issues: ManifestValidator.validate(manifest),
+                    issues: ManifestValidator.validate(manifest, folder: store.folder(for: manifest.id)),
                     registrationError: registrationErrors[manifest.id],
                     folderPath: store.folder(for: manifest.id).path
                 )

@@ -23,7 +23,7 @@ final class RunnerService: NSObject, NSXPCListenerDelegate, RunnerXPCProtocol, S
     // MARK: NSXPCListenerDelegate
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection newConnection: NSXPCConnection) -> Bool {
-        // Not yet restricted to our own signed app: see docs/ARCHITECTURE.md, "Known gaps".
+        // The listener only lets through clients that satisfy CodeSigning.clientRequirement().
         newConnection.exportedInterface = NSXPCInterface(with: RunnerXPCProtocol.self)
         newConnection.exportedObject = self
         newConnection.resume()

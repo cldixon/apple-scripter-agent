@@ -44,4 +44,23 @@ struct SystemEnvironment: AutomationEnvironment {
     func sleep(seconds: Double) async throws {
         try await Task.sleep(for: .seconds(seconds))
     }
+
+    func runScript(_ request: ScriptRequest) async throws -> String {
+        try await checkAutomationTargets(request)
+        return try await ScriptRunner.run(request)
+    }
+
+    /// The runner refuses a script that controls an app the manifest did not declare.
+    private func checkAutomationTargets(_ request: ScriptRequest) async throws {
+        guard request.language == .applescript || request.language == .jxa else { return }
+        let source = request.source ?? request.file.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+        let declared = Set(request.declaredPermissions.compactMap(\.automationTarget))
+        for target in ScriptAnalysis.targetApplications(in: source, language: request.language)
+        where !ScriptAnalysis.exemptTargets.contains(target) {
+            let bundleID = await SystemActions.bundleIdentifier(forApp: target) ?? target
+            guard declared.contains(bundleID) || declared.contains(target) else {
+                throw AutomationError.permissionMissing(.automation(bundleID))
+            }
+        }
+    }
 }

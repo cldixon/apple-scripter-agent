@@ -9,6 +9,7 @@ struct RunnerView: View {
         Form {
             registrationSection
             connectionSection
+            SnippetView()
             activitySection
         }
         .formStyle(.grouped)

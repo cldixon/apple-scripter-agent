@@ -17,6 +17,9 @@ final class RunnerAppDelegate: NSObject, NSApplicationDelegate {
 
         let service = RunnerService(core: core, startedAt: state.startedAt)
         let listener = NSXPCListener(machServiceName: Identifiers.runnerMachServiceName)
+        let requirement = CodeSigning.clientRequirement()
+        listener.setConnectionCodeSigningRequirement(requirement)
+        logger.info("XPC clients must satisfy: \(requirement, privacy: .public)")
         listener.delegate = service
         listener.resume()
 

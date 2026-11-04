@@ -105,17 +105,50 @@ struct ManifestValidatorTests {
         #expect(issues.map(\.location) == ["trigger.modifiers"])
     }
 
-    @Test func appleScriptStepNeedsSupport() {
-        let script = Step(.applescript(ScriptSource(source: "return 1")), output: "result")
-        let unsupported = ManifestValidator.validate(manifest(steps: [script]))
+    @Test func accessibilityStepNeedsSupport() {
+        let step = Step(.accessibility(action: "click"), output: "result")
+        let unsupported = ManifestValidator.validate(manifest(steps: [step]))
         #expect(errors(unsupported).map(\.location) == ["steps[0]"])
-        #expect(errors(unsupported).first?.message.contains("applescript") == true)
+        #expect(errors(unsupported).first?.message.contains("ax") == true)
 
         let supported = ManifestValidator.validate(
-            manifest(steps: [script]),
-            supportedStepTypes: ["primitive", "applescript"]
+            manifest(steps: [step]),
+            supportedStepTypes: ["primitive", "ax"]
         )
         #expect(errors(supported).isEmpty)
+    }
+
+    @Test func scriptStepsAreSupported() {
+        let script = Step(.applescript(ScriptSource(source: "return 1")), output: "result")
+        #expect(errors(ManifestValidator.validate(manifest(steps: [script]))).isEmpty)
+    }
+
+    @Test func scriptThatControlsAnAppNeedsAnAutomationPermission() {
+        let source = "tell application \"Finder\" to get selection"
+        let script = Step(.applescript(ScriptSource(source: source)))
+        let undeclared = ManifestValidator.validate(manifest(steps: [script]))
+        #expect(errors(undeclared).map(\.location) == ["steps[0]"])
+
+        var declared = manifest(steps: [script])
+        declared.permissions = [.automation("com.apple.finder")]
+        #expect(errors(ManifestValidator.validate(declared)).isEmpty)
+    }
+
+    @Test func scriptFilesMustExistInsideTheFolder() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let scripts = folder.appending(path: "scripts")
+        try FileManager.default.createDirectory(at: scripts, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try "echo hi".write(to: folder.appending(path: "scripts/ok.sh"), atomically: true, encoding: .utf8)
+
+        let present = manifest(steps: [Step(.shell(ScriptSource(file: "scripts/ok.sh")))])
+        #expect(errors(ManifestValidator.validate(present, folder: folder)).isEmpty)
+
+        let missing = manifest(steps: [Step(.shell(ScriptSource(file: "scripts/missing.sh")))])
+        #expect(errors(ManifestValidator.validate(missing, folder: folder)).count == 1)
+
+        let escaping = manifest(steps: [Step(.shell(ScriptSource(file: "../outside.sh")))])
+        #expect(errors(ManifestValidator.validate(escaping, folder: folder)).count == 1)
     }
 
     @Test func nonPositiveTimeoutIsAnError() {

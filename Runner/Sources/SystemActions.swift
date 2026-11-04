@@ -129,6 +129,14 @@ enum SystemActions {
         }
     }
 
+    /// Bundle id for an app name ("Finder") or bundle id; nil if no such app is installed.
+    static func bundleIdentifier(forApp app: String) -> String? {
+        if NSWorkspace.shared.urlForApplication(withBundleIdentifier: app) != nil { return app }
+        if app == "Finder" { return "com.apple.finder" }
+        if app == "System Events" { return "com.apple.systemevents" }
+        return applicationURL(for: app).flatMap { Bundle(url: $0)?.bundleIdentifier }
+    }
+
     private static func applicationURL(for app: String) -> URL? {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app) { return url }
         let name = app.hasSuffix(".app") ? app : "\(app).app"

@@ -1,0 +1,15 @@
+{
+  "id": "word-count-clipboard",
+  "name": "Word count of the clipboard",
+  "description": "Counts the words on the clipboard and shows the result in a notification.",
+  "trigger": { "type": "hotkey", "key": "W", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "primitive", "action": "readClipboard", "as": "text" },
+    { "type": "shell", "file": "scripts/count-words.sh", "as": "count" },
+    { "type": "primitive", "action": "notify", "title": "Word count", "text": "{{count}} words on the clipboard" }
+  ],
+  "permissions": [],
+  "tests": [
+    { "kind": "unit", "step": 0, "clipboard": "one two three", "expect": "one two three" }
+  ]
+}
