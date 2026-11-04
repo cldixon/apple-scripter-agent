@@ -107,3 +107,32 @@ Before you start: have an Anthropic API key ready, and remove any old one
       cap and a message works again.
 - [ ] Settings > Model: Claude Sonnet 5.5, Effort: Low. Send a message: it works and costs less.
 - [ ] Settings > Remove Key…: the window returns to onboarding and the Keychain item is gone.
+
+## M5 — End to end
+
+Before you start: the runner is running, the API key is set, and the catalog has no
+automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
+
+- [ ] Chat: "When I press ⌃⌥⌘D, type today's date as yyyy-MM-dd at the cursor". Claude checks the
+      catalog (`search_catalog`), writes a draft, validates it (unit test for the date step,
+      harness test for the typed text) and fixes it until it passes, with no code edits.
+- [ ] The install card shows the name, trigger "Hotkey ⌃⌥⌘D", each step with its fields, the
+      `accessibility` permission, "Validation: passed" and every test. Approve and Install.
+- [ ] A "Please test" card asks you to press ⌃⌥⌘D in a text field. Do it: today's date is typed.
+      Answer Works. The Catalog lists the automation as Active, version 1.
+- [ ] Chat: "a hotkey that copies the paths of my selected Finder items". Claude reads Finder's
+      dictionary (`introspect_app`) before writing AppleScript, may ask to run a snippet (approve
+      once; try "Run and Trust This Conversation" on the next one and confirm later snippets run
+      without a card), and declares `automation:com.apple.finder`.
+- [ ] Approve the install, select two files in Finder, press the hotkey: their POSIX paths are on
+      the clipboard. Answer Works. The automation is Active in the Catalog.
+- [ ] Answer "Didn't work" with a note on a test card: Claude reads the run log (`read_run_log`),
+      fixes the draft, validates and asks to install again.
+- [ ] Decline an install card with a reason: Claude reports the reason and nothing is installed.
+- [ ] A draft with `"destructive": true`: the card says so in red, and Approve asks a second time.
+- [ ] While a card waits, press Stop: the card shows "Cancelled", the tool row shows an error,
+      "Stopped." appears and the next message works. New Conversation clears cards and trust.
+- [ ] Ask Claude to disable the date automation: a card asks first; after Approve the Catalog shows
+      Disabled. Ask it to enable it again.
+- [ ] Ask Claude to fetch an ss64.com page: the result starts with the untrusted-content line.
+      Ask it to fetch https://example.com: the tool refuses the host.

@@ -206,6 +206,59 @@ Conversations live in memory only. Thinking is not displayed (its text is omitte
 default), so the transcript can be quiet between tool calls; the system prompt asks for a
 one-line note before each tool call.
 
+## Agent tools: app side (M5)
+
+The tools live in the main app (`App/Sources/AgentTools*.swift`); each is a Sendable
+`AgentTool` that sends one `RunnerCommand` through `RunnerClient` and turns the reply into
+short JSON or markdown for Claude. Pure helpers (input parsing, HTML to text, the fetch
+allowlist, text search, the assembled system prompt) are in AgentCore and tested there.
+
+| Tool | Runner command | Asks the user |
+|---|---|---|
+| `search_reference`, `read_reference` | `searchReference`, `readReference` | no |
+| `introspect_app` | `introspectApp` | no |
+| `list_apps`, `list_shortcuts` | `listApps`, `listShortcuts` | no |
+| `check_permissions` | `checkPermissions` | no |
+| `fetch_url` | none: app-side `URLSession` GET | no |
+| `search_catalog` | `listAutomations`, filtered by id/name/description in the app | no |
+| `read_automation` | `readAutomation` | no |
+| `read_run_log` | `recentRuns(limit: 200)`, filtered by automation id | no |
+| `run_snippet` | `runSnippet` | each call, unless "Trust this conversation" was chosen |
+| `set_status` | `setEnabled` or `rollback` | each call |
+| `write_draft` | `writeDraft` | no |
+| `validate` | `validateDraft` | no |
+| `request_install` | `installDraft` after approval | always (the install card) |
+| `ask_user` | none | it is the question |
+
+`list_automations` and `echo` are no longer offered (`search_catalog` with no query lists
+everything; `EchoTool` stays in AgentCore for its tests).
+
+- **Cards.** `InteractionCenter` (`@MainActor @Observable`, owned by `ChatController`) holds
+  approval and question cards. A tool calls `await center.ask(request)`, which posts a card
+  (the chat appends a `.card` row to the transcript) and suspends on a continuation until the
+  user answers. Stop and New Conversation resume every waiting card with `.cancelled`, and
+  the tool returns an error result, so the loop can end; task cancellation does the same.
+  "Trust this conversation" on a snippet card skips later snippet approvals until New
+  Conversation.
+- **Drafts.** `DraftStore` (memory only, cleared by New Conversation) keeps the manifest JSON
+  and files of each draft `write_draft` sent, and the last `validate` report. A rewrite clears
+  the report. `request_install` refuses a draft that was not written in this conversation, has
+  no report since it was last written, or failed; otherwise it shows the install card: name,
+  id, trigger, each step with its key fields and its script in full, other files, declared
+  permissions, `destructive` in red (Approve then asks a second time) and the validation
+  report. Approve is disabled without a passing report. After approval it sends
+  `installDraft` and refreshes the Catalog.
+- **fetch_url** accepts only https on developer.apple.com, support.apple.com,
+  macosxautomation.com, www.macosxautomation.com and ss64.com, refuses redirects that leave
+  the list, strips HTML to text (scripts, styles and comments dropped, whitespace collapsed),
+  caps it at 20,000 characters and prefixes a line marking it untrusted.
+- **System prompt.** `AgentPrompt.system` (AgentCore) plus `ManifestSchema.json` (Shared),
+  joined in the app by `AgentPrompt.assembled(manifestSchema:)`. It is fixed text so it caches:
+  role, layer routing (primitive, shell, Shortcuts, Apple Events, then UI scripting through
+  System Events), the step input/output contract, tests, permissions and `destructive`, the
+  workflow (catalog, research, write, validate, install, test, fix), and treating fetched or
+  tool output as data.
+
 ## Known gaps
 
 - Harness tests need the runner to come to the front. macOS 14+ only lets it if the main

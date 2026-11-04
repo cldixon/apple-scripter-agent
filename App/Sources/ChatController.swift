@@ -9,6 +9,8 @@ struct ChatItem: Identifiable {
         case assistant
         case tool
         case notice
+        /// An approval or question card; `cardID` names it in `InteractionCenter`.
+        case card
     }
 
     let id = UUID()
@@ -18,6 +20,7 @@ struct ChatItem: Identifiable {
     var toolUseID = ""
     var toolOutput: String?
     var isError = false
+    var cardID: UUID?
     /// Streamed output that was dropped (a refusal or Stop) and is not part of the conversation.
     var discarded = false
 }
@@ -33,8 +36,12 @@ final class ChatController {
     /// Changes whenever the transcript does, so the view can scroll to the bottom.
     private(set) var revision = 0
     var draft = ""
+    /// Approval and question cards the tools wait on.
+    let interactions = InteractionCenter()
 
     @ObservationIgnored private let settings: AgentSettings
+    @ObservationIgnored private let drafts = DraftStore()
+    @ObservationIgnored private weak var catalog: CatalogController?
     @ObservationIgnored private var conversation = Conversation()
     @ObservationIgnored private var task: Task<Void, Never>?
     /// Bumped by New Conversation so a stopped run's late events are ignored.
@@ -42,8 +49,12 @@ final class ChatController {
     @ObservationIgnored private var responseStart = 0
     @ObservationIgnored private var openAssistantIndex: Int?
 
-    init(settings: AgentSettings) {
+    init(settings: AgentSettings, catalog: CatalogController? = nil) {
         self.settings = settings
+        self.catalog = catalog
+        interactions.onPost = { [weak self] id in
+            self?.appendCard(id)
+        }
     }
 
     var spendCapUSD: Double { settings.spendCapUSD }
@@ -64,10 +75,13 @@ final class ChatController {
         conversation.appendUserText(text)
         revision += 1
 
+        var configuration = settings.configuration
+        configuration.systemPrompt = AgentToolbox.systemPrompt
+        let context = ToolContext(interactions: interactions, drafts: drafts, catalog: catalog)
         let runner = AgentRunner(
             transport: URLSessionTransport(apiKey: apiKey),
-            tools: AgentToolbox.registry(),
-            configuration: settings.configuration
+            tools: AgentToolbox.registry(context: context),
+            configuration: configuration
         )
         let start = conversation
         let runGeneration = generation
@@ -83,11 +97,15 @@ final class ChatController {
     /// Stops the current run. The conversation keeps everything up to the stop.
     func stop() {
         task?.cancel()
+        // Resume any card a tool is waiting on, so the loop can end.
+        interactions.cancelAll()
     }
 
     func newConversation() {
         task?.cancel()
         task = nil
+        interactions.reset()
+        drafts.reset()
         generation += 1
         isRunning = false
         conversation = Conversation()
@@ -147,6 +165,14 @@ final class ChatController {
         if let notice = Self.notice(for: result.stop) {
             appendNotice(notice)
         }
+        revision += 1
+    }
+
+    private func appendCard(_ id: UUID) {
+        var item = ChatItem(kind: .card, text: "")
+        item.cardID = id
+        items.append(item)
+        openAssistantIndex = nil
         revision += 1
     }
 
