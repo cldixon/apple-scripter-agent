@@ -30,7 +30,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
 
 /// Sidebar on the left, the selected area on the right, runner status pinned under the sidebar.
 struct RootView: View {
-    @State private var selection: SidebarItem? = .runner
+    @State private var selection: SidebarItem? = .chat
 
     var body: some View {
         NavigationSplitView {
@@ -51,32 +51,13 @@ struct RootView: View {
     private func detail(for item: SidebarItem) -> some View {
         switch item {
         case .chat:
-            PlaceholderView(
-                title: "Chat",
-                milestone: "M4 and M5",
-                summary: "Describe an automation in plain words. The agent researches, drafts, "
-                    + "validates and asks you to approve it here.",
-                plannedItems: [
-                    "Streamed replies from Claude",
-                    "Inline cards for approvals, test requests and validation reports",
-                    "Per-conversation token usage and spend cap"
-                ]
-            )
+            ChatView()
         case .catalog:
             CatalogView()
         case .runner:
             RunnerView()
         case .settings:
-            PlaceholderView(
-                title: "Settings",
-                milestone: "M4",
-                summary: "Your Claude API key, model choice and permissions.",
-                plannedItems: [
-                    "API key, stored in the Keychain",
-                    "Model and spend cap",
-                    "Live status of each macOS permission the runner needs"
-                ]
-            )
+            SettingsView()
         }
     }
 }
