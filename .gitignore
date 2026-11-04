@@ -1,0 +1,15 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+.build/
+.swiftpm/
+*.xcresult
+
+# Local signing overrides (team id etc.)
+Config/Local.xcconfig
+
+# macOS
+.DS_Store
