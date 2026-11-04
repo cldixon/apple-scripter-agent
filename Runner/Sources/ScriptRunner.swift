@@ -272,6 +272,6 @@ private final class PipeCollector: Sendable {
     /// Waits (briefly) for the pipe to close and returns what was read.
     func finish() -> String {
         _ = done.wait(timeout: .now() + 2)
-        return String(decoding: data.withLock { $0 }, as: UTF8.self)
+        return String(bytes: data.withLock { $0 }, encoding: .utf8) ?? ""
     }
 }
