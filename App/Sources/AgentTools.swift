@@ -2,73 +2,74 @@ import AgentCore
 import Foundation
 import Shared
 
-/// The tools offered to Claude. M5 adds the drafting, validation and install tools here.
-/// The set must stay the same for the whole of a conversation (see `ToolRegistry`).
+/// What the tools share with the chat: the card center they wait on, the drafts written in this
+/// conversation, and the catalog to refresh after a change. All main-actor objects, so Sendable.
+struct ToolContext: Sendable {
+    let interactions: InteractionCenter
+    let drafts: ChatDrafts
+    let catalog: CatalogController?
+}
+
+/// The tools offered to Claude and the system prompt. The set must stay the same for the whole
+/// of a conversation (see `ToolRegistry`).
 enum AgentToolbox {
-    static func registry() -> ToolRegistry {
+    static func registry(context: ToolContext) -> ToolRegistry {
         ToolRegistry([
-            ListAutomationsTool(),
-            EchoTool()
+            // Research
+            SearchReferenceTool(),
+            ReadReferenceTool(),
+            IntrospectAppTool(),
+            ListAppsTool(),
+            ListShortcutsTool(),
+            CheckPermissionsTool(),
+            FetchURLTool(),
+            RunSnippetTool(context: context),
+            // Catalog
+            SearchCatalogTool(),
+            ReadAutomationTool(),
+            ReadRunLogTool(),
+            SetStatusTool(context: context),
+            // Drafting
+            WriteDraftTool(context: context),
+            ValidateTool(context: context),
+            RequestInstallTool(context: context),
+            AskUserTool(context: context)
         ])
     }
+
+    /// AgentCore's base prompt plus the manifest schema. Fixed text, so it caches.
+    static let systemPrompt = AgentPrompt.assembled(manifestSchema: ManifestSchema.json)
 }
 
-/// Lists installed automations by asking the runner. Read-only.
-struct ListAutomationsTool: AgentTool {
-    let name = "list_automations"
-    let description = """
-        Lists the automations installed on this Mac: id, name, trigger, whether each is active, \
-        and any validation problems. Call it whenever the person asks what is installed, before \
-        suggesting a new automation (to avoid duplicates), or when they refer to an existing one.
-        """
-
-    var inputSchema: JSONValue {
-        ["type": "object", "properties": [:], "additionalProperties": false]
-    }
-
-    func run(input: JSONValue) async throws -> String {
-        let reply = try await RunnerClient().send(.listAutomations, timeout: 10)
-        switch reply {
-        case .automations(let summaries, let paused):
-            let items = summaries.map { summary in
-                AutomationListing.Item(
-                    id: summary.id,
-                    name: summary.name,
-                    description: summary.description,
-                    trigger: summary.trigger,
-                    active: summary.isActive,
-                    version: summary.version,
-                    stepTypes: summary.stepTypes,
-                    issues: summary.issues.map { $0.description },
-                    registrationError: summary.registrationError
-                )
-            }
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-            let data = try encoder.encode(AutomationListing(paused: paused, automations: items))
-            return String(data: data, encoding: .utf8) ?? "{}"
-        case .failure(let message):
-            throw ToolError("The runner reported an error: \(message)")
-        default:
-            throw ToolError("The runner sent an unexpected reply.")
+/// Sending runner commands from tools, with errors phrased for Claude.
+enum RunnerTool {
+    static func send(_ command: RunnerCommand, timeout: Double = 30) async throws -> RunnerReply {
+        let reply: RunnerReply
+        do {
+            reply = try await RunnerClient().send(command, timeout: timeout)
+        } catch {
+            throw ToolError("Could not reach the runner: \(error.localizedDescription)")
         }
+        if case .failure(let message) = reply {
+            throw ToolError("The runner reported an error: \(message)")
+        }
+        return reply
     }
+
+    static func unexpected(_ reply: RunnerReply) -> ToolError {
+        ToolError("The runner sent an unexpected reply (\(String(describing: reply).prefix(80))).")
+    }
+
+    /// The error a tool throws when the user pressed Stop or New Conversation at a card.
+    static let cancelled = ToolError("Cancelled: the user stopped the agent before answering.")
 }
 
-/// What `list_automations` returns, as JSON.
-private struct AutomationListing: Encodable {
-    struct Item: Encodable {
-        var id: String
-        var name: String
-        var description: String?
-        var trigger: String
-        var active: Bool
-        var version: Int
-        var stepTypes: [String]
-        var issues: [String]
-        var registrationError: String?
-    }
-
-    var paused: Bool
-    var automations: [Item]
+/// An input schema for an object with these properties.
+func objectSchema(_ properties: [String: JSONValue], required: [String] = []) -> JSONValue {
+    [
+        "type": "object",
+        "properties": .object(properties),
+        "required": .array(required.map { .string($0) }),
+        "additionalProperties": false
+    ]
 }

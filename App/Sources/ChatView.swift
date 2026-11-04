@@ -85,6 +85,10 @@ struct ChatItemRow: View {
             Label(item.text, systemImage: "info.circle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        case .card:
+            if let cardID = item.cardID {
+                InteractionCardView(cardID: cardID)
+            }
         }
     }
 }

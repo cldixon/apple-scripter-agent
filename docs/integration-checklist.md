@@ -107,3 +107,67 @@ Before you start: have an Anthropic API key ready, and remove any old one
       cap and a message works again.
 - [ ] Settings > Model: Claude Sonnet 5.5, Effort: Low. Send a message: it works and costs less.
 - [ ] Settings > Remove Key…: the window returns to onboarding and the Keychain item is gone.
+
+## M5 — Runner side (reference library, drafts)
+
+Before you start: quit the runner from the gear menu so it starts fresh. Most checks use the
+agent's tools from Chat; `sqlite3` and the Finder are enough for the rest.
+
+- [ ] Ping, then open the gear menu: a "Reference library: building…" line appears, and within
+      a minute or two changes to "Reference library: N chunks, built HH:MM" (N in the thousands).
+- [ ] `~/Library/Application Support/AutomationAgent/reference/library.sqlite` exists;
+      `sqlite3 … 'select origin from origins'` lists `bundled:recipes.md`, `man:pmset`,
+      `sdef:com.apple.finder`, `sdef:com.apple.systemevents` and the installed automations.
+- [ ] `Contents/Library/LoginItems/AutomationAgentRunner.app/Contents/Resources/Reference/` in the built app holds the
+      six markdown files.
+- [ ] Quit and relaunch the runner: the second build finishes in seconds (unchanged sources are skipped).
+- [ ] Ask the agent "How do I split text by commas in AppleScript?": it searches the reference and
+      reads `recipes/text-item-delimiters` (or similar) before answering.
+- [ ] search_reference with `"unbalanced quote AND (` returns results or an empty list, never an error.
+- [ ] introspect_app "Finder" with query "window" returns classes and commands about windows;
+      "Mail" without a query returns a truncated summary; "Calculator" says it is not scriptable.
+- [ ] list_apps lists Finder, Safari and Mail with bundle ids; running apps are marked running.
+- [ ] list_shortcuts returns the names in the Shortcuts app.
+- [ ] check_permissions for accessibility, automation:com.apple.finder, fullDiskAccess and
+      screenRecording matches System Settings > Privacy & Security; with Mail quit,
+      automation:com.apple.mail says "launch the app to check".
+- [ ] read_automation insert-iso-date returns the manifest and no binary files.
+- [ ] write_draft with a manifest that has `"trigger": 5` fails with a message naming `trigger`.
+- [ ] write_draft with a file path `../x.sh` fails and writes nothing under `drafts/`.
+- [ ] write_draft of a valid automation creates `drafts/<id>/`; writing it again with fewer files
+      replaces the folder (old files are gone).
+- [ ] validate_draft runs compile, unit and harness tests (the harness window appears for a harness
+      test; the hotkey is not posted); `runs.jsonl` has a `test` run with the draft's id.
+- [ ] install_draft installs it (Catalog shows it, `git log` has "Install <id> v1", the hotkey works)
+      and `drafts/<id>/` is gone. discard_draft on another draft deletes its folder.
+- [ ] Update an app (or change a scriptable app's version), wait for the six-hourly rebuild or relaunch
+      the runner: only that app's `sdef:` origin changes (`select origin, updated from origins`).
+
+## M5 — End to end
+
+Before you start: the runner is running, the API key is set, and the catalog has no
+automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
+
+- [ ] Chat: "When I press ⌃⌥⌘D, type today's date as yyyy-MM-dd at the cursor". Claude checks the
+      catalog (`search_catalog`), writes a draft, validates it (unit test for the date step,
+      harness test for the typed text) and fixes it until it passes, with no code edits.
+- [ ] The install card shows the name, trigger "Hotkey ⌃⌥⌘D", each step with its fields, the
+      `accessibility` permission, "Validation: passed" and every test. Approve and Install.
+- [ ] A "Please test" card asks you to press ⌃⌥⌘D in a text field. Do it: today's date is typed.
+      Answer Works. The Catalog lists the automation as Active, version 1.
+- [ ] Chat: "a hotkey that copies the paths of my selected Finder items". Claude reads Finder's
+      dictionary (`introspect_app`) before writing AppleScript, may ask to run a snippet (approve
+      once; try "Run and Trust This Conversation" on the next one and confirm later snippets run
+      without a card), and declares `automation:com.apple.finder`.
+- [ ] Approve the install, select two files in Finder, press the hotkey: their POSIX paths are on
+      the clipboard. Answer Works. The automation is Active in the Catalog.
+- [ ] Answer "Didn't work" with a note on a test card: Claude reads the run log (`read_run_log`),
+      fixes the draft, validates and asks to install again.
+- [ ] Decline an install card with a reason: Claude reports the reason and nothing is installed.
+- [ ] A draft with `"destructive": true`: the card says so in red, and Approve asks a second time.
+- [ ] While a card waits, press Stop: the card shows "Cancelled", the tool row shows an error,
+      "Stopped." appears and the next message works. New Conversation clears cards and trust.
+- [ ] Ask Claude to disable the date automation: a card asks first; after Approve the Catalog shows
+      Disabled. Ask it to enable it again.
+- [ ] Ask Claude to fetch an ss64.com page: the result starts with the untrusted-content line.
+      Ask it to fetch https://example.com: the tool refuses the host.
