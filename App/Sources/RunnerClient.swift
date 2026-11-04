@@ -18,19 +18,28 @@ enum RunnerClientError: LocalizedError {
 /// Talks to the runner over XPC. Opens a fresh connection per call; calls are rare and
 /// launchd starts the runner on demand when its Mach service is looked up.
 struct RunnerClient: Sendable {
-    var timeoutSeconds: Double = 3
-
     func ping() async throws -> PingResponse {
         let request = PingRequest(sentAt: Date(), clientVersion: BundleVersion.of(.main).description)
-        let reply = try await call(payload: XPCCoding.encode(request)) { runner, payload, completion in
+        let reply = try await call(payload: XPCCoding.encode(request), timeout: 3) { runner, payload, completion in
             runner.ping(payload, reply: completion)
         }
         return try XPCCoding.decode(PingResponse.self, from: reply)
     }
 
+    /// Sends a command. Tests can take a while (they open the harness window), so the
+    /// timeout is generous.
+    func send(_ command: RunnerCommand, timeout: Double = 60) async throws -> RunnerReply {
+        let payload = try XPCCoding.encode(command)
+        let reply = try await call(payload: payload, timeout: timeout) { runner, payload, completion in
+            runner.send(payload, reply: completion)
+        }
+        return try XPCCoding.decode(RunnerReply.self, from: reply)
+    }
+
     /// Sends one request and waits for the first of: the reply, a connection error, or the timeout.
     private func call(
         payload: Data,
+        timeout: Double,
         invoke: (any RunnerXPCProtocol, Data, @escaping @Sendable (Data) -> Void) -> Void
     ) async throws -> Data {
         let connection = NSXPCConnection(machServiceName: Identifiers.runnerMachServiceName, options: [])
@@ -38,7 +47,6 @@ struct RunnerClient: Sendable {
         connection.resume()
         defer { connection.invalidate() }
 
-        let timeout = timeoutSeconds
         return try await withCheckedThrowingContinuation { continuation in
             let once = ResumeOnce(continuation)
             let proxy = connection.remoteObjectProxyWithErrorHandler { error in

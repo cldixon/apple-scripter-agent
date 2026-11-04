@@ -2,17 +2,20 @@ import AppKit
 import os
 import Shared
 
-/// Starts the XPC listener as soon as the runner launches.
+/// Loads automations and starts the XPC listener as soon as the runner launches.
 @MainActor
 final class RunnerAppDelegate: NSObject, NSApplicationDelegate {
-    let state = RunnerState()
+    let core = RunnerCore()
+    var state: RunnerState { core.state }
 
     private let logger = Logger(subsystem: Identifiers.logSubsystem, category: "runner")
     private var listener: NSXPCListener?
     private var service: RunnerService?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let service = RunnerService(state: state, startedAt: state.startedAt)
+        core.reload()
+
+        let service = RunnerService(core: core, startedAt: state.startedAt)
         let listener = NSXPCListener(machServiceName: Identifiers.runnerMachServiceName)
         listener.delegate = service
         listener.resume()

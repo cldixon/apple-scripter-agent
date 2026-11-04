@@ -43,9 +43,40 @@ live in `Shared/Sources/Shared/Identifiers.swift`. The same strings appear in
 the Objective-C surface stays tiny. The client opens a connection per call and resolves
 on the first of: reply, connection error, or a 3 second timeout (`ResumeOnce`).
 
+## Automations (M1)
+
+An automation is a folder with a `manifest.json` (see `ManifestSchema.swift` and
+`Examples/`). The runner keeps installed automations in
+`~/Library/Application Support/AutomationAgent/automations/<id>/` and appends one JSON
+line per run to `runs.jsonl` beside it.
+
+```
+manifest.json ──decode──▶ AutomationManifest ──validate──▶ [ValidationIssue]
+                                │
+            trigger (hotkey) ───┤ HotkeyCenter (Carbon RegisterEventHotKey, no permission)
+                                ▼
+                          AutomationEngine ── steps in order, {{name}} outputs, per-step timeout
+                                │
+                    AutomationEnvironment ── SystemEnvironment (runner: CGEvent typing, pasteboard,
+                                             NSWorkspace) or RecordingEnvironment (unit tests)
+```
+
+- **Shared** holds everything that can be tested without a Mac's permissions: manifest
+  types, templating, validation, the engine, the store and unit-test runner.
+- **Runner** supplies the real environment, hotkeys and the harness window: a small
+  window the runner owns, which automations type into during harness tests. A harness test
+  runs the automation directly, then posts its real hotkey, and compares the window's text.
+- **App** sends `RunnerCommand`s (list, install, run, test, remove, pause) and shows the
+  replies on the Catalog screen. It never runs automations itself.
+
+Only `primitive` steps run in M1; the validator rejects other step types until M2.
+
 ## Known gaps (to close before anything runs automations)
 
 - The runner accepts XPC connections from any local process. Before M2 adds `run_snippet`,
   restrict it with `NSXPCConnection.setCodeSigningRequirement` to the main app's bundle id
   and team.
-- "Pause All Automations" in the runner menu only records the setting; M1 wires it up.
+- A step that ignores cancellation can hold up its timeout (the engine waits for it to
+  finish). Primitives are quick; M2's script steps run in child processes that are killed.
+- Harness tests need the runner to come to the front. macOS 14+ only lets it if the main
+  app yields activation first, which the Catalog's Run Tests button does.

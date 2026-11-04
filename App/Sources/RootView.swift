@@ -63,16 +63,7 @@ struct RootView: View {
                 ]
             )
         case .catalog:
-            PlaceholderView(
-                title: "Catalog",
-                milestone: "M3",
-                summary: "Every automation the agent has made, with its status, versions and run history.",
-                plannedItems: [
-                    "Search and status filters",
-                    "Trigger, steps and scripts for each automation",
-                    "Enable, disable, roll back, and \"Fix with agent\""
-                ]
-            )
+            CatalogView()
         case .runner:
             RunnerView()
         case .settings:
