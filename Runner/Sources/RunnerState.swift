@@ -16,6 +16,9 @@ final class RunnerState {
     var automations: [AutomationSummary] = []
     private(set) var lastRun: RunRecord?
 
+    /// One line about the agent's reference library (chunks, last build, problems).
+    var referenceStatus: String?
+
     /// Why catalog changes are not being versioned, or nil when they are.
     var versioningProblem: String?
 

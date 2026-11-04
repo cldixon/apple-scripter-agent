@@ -11,6 +11,9 @@ struct RunnerMenu: View {
         Text("Automation Agent Runner")
         Text("Running since \(state.startedAt.formatted(date: .omitted, time: .standard)), pid \(state.processID)")
         Text(SystemActions.isAccessibilityTrusted ? "Accessibility: allowed" : "Accessibility: not allowed")
+        if let referenceStatus = state.referenceStatus {
+            Text(referenceStatus)
+        }
         if let problem = state.versioningProblem {
             Text("Version history is off: \(problem)")
         }

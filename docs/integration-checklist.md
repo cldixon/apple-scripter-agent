@@ -107,3 +107,38 @@ Before you start: have an Anthropic API key ready, and remove any old one
       cap and a message works again.
 - [ ] Settings > Model: Claude Sonnet 5.5, Effort: Low. Send a message: it works and costs less.
 - [ ] Settings > Remove Key…: the window returns to onboarding and the Keychain item is gone.
+
+## M5 — Runner side (reference library, drafts)
+
+Before you start: quit the runner from the gear menu so it starts fresh. Most checks use the
+agent's tools from Chat; `sqlite3` and the Finder are enough for the rest.
+
+- [ ] Ping, then open the gear menu: a "Reference library: building…" line appears, and within
+      a minute or two changes to "Reference library: N chunks, built HH:MM" (N in the thousands).
+- [ ] `~/Library/Application Support/AutomationAgent/reference/library.sqlite` exists;
+      `sqlite3 … 'select origin from origins'` lists `bundled:recipes.md`, `man:pmset`,
+      `sdef:com.apple.finder`, `sdef:com.apple.systemevents` and the installed automations.
+- [ ] `Contents/Library/LoginItems/AutomationAgentRunner.app/Contents/Resources/Reference/` in the built app holds the
+      six markdown files.
+- [ ] Quit and relaunch the runner: the second build finishes in seconds (unchanged sources are skipped).
+- [ ] Ask the agent "How do I split text by commas in AppleScript?": it searches the reference and
+      reads `recipes/text-item-delimiters` (or similar) before answering.
+- [ ] search_reference with `"unbalanced quote AND (` returns results or an empty list, never an error.
+- [ ] introspect_app "Finder" with query "window" returns classes and commands about windows;
+      "Mail" without a query returns a truncated summary; "Calculator" says it is not scriptable.
+- [ ] list_apps lists Finder, Safari and Mail with bundle ids; running apps are marked running.
+- [ ] list_shortcuts returns the names in the Shortcuts app.
+- [ ] check_permissions for accessibility, automation:com.apple.finder, fullDiskAccess and
+      screenRecording matches System Settings > Privacy & Security; with Mail quit,
+      automation:com.apple.mail says "launch the app to check".
+- [ ] read_automation insert-iso-date returns the manifest and no binary files.
+- [ ] write_draft with a manifest that has `"trigger": 5` fails with a message naming `trigger`.
+- [ ] write_draft with a file path `../x.sh` fails and writes nothing under `drafts/`.
+- [ ] write_draft of a valid automation creates `drafts/<id>/`; writing it again with fewer files
+      replaces the folder (old files are gone).
+- [ ] validate_draft runs compile, unit and harness tests (the harness window appears for a harness
+      test; the hotkey is not posted); `runs.jsonl` has a `test` run with the draft's id.
+- [ ] install_draft installs it (Catalog shows it, `git log` has "Install <id> v1", the hotkey works)
+      and `drafts/<id>/` is gone. discard_draft on another draft deletes its folder.
+- [ ] Update an app (or change a scriptable app's version), wait for the six-hourly rebuild or relaunch
+      the runner: only that app's `sdef:` origin changes (`select origin, updated from origins`).

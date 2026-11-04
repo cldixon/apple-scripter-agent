@@ -23,6 +23,20 @@ enum ScriptRunner {
         return try await launch(invocation, timeout: request.timeout)
     }
 
+    /// Runs a command-line tool (`sdef`, `man`, `shortcuts list`) with a timeout and returns
+    /// what it printed. `environment` is added to the runner's own.
+    static func runTool(
+        _ executable: String,
+        arguments: [String],
+        environment: [String: String] = [:],
+        timeout: Double
+    ) async throws -> ScriptResult {
+        let invocation = Invocation(
+            executable: executable, arguments: arguments, environment: environment, directory: nil
+        )
+        return try await launch(invocation, timeout: timeout)
+    }
+
     /// Compiles AppleScript or JXA without running it, or syntax-checks shell. Returns the
     /// compiler's error text, empty when the script is valid.
     static func compile(_ language: ScriptLanguage, source: String) async throws -> String {

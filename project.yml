@@ -44,6 +44,10 @@ targets:
     platform: macOS
     sources:
       - path: Runner/Sources
+      # The agent's bundled reference notes, copied as a folder: Contents/Resources/Reference/*.md
+      - path: Reference
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: Shared
     settings:
