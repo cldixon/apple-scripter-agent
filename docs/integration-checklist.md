@@ -82,3 +82,28 @@ Quit the runner from the gear menu so it starts fresh.
 - [ ] Without git (temporarily rename the command line tools, or test on a Mac without them):
       the runner starts, installs still work, the gear menu says "Version history is off", and the
       Versions section explains why.
+
+## M4 — Claude client and chat
+
+Before you start: have an Anthropic API key ready, and remove any old one
+(`security delete-generic-password -s dev.cldixon.AutomationAgent -a anthropic-api-key`).
+
+- [ ] Launch: the window shows "Connect to Claude" instead of the sidebar.
+- [ ] Paste a wrong key, press Validate and Continue: an error says the key was rejected; nothing is stored.
+- [ ] Paste a valid key: the main window appears with Chat selected. Keychain Access lists
+      "Automation Agent: Anthropic API key" (service `dev.cldixon.AutomationAgent`).
+- [ ] `defaults read dev.cldixon.AutomationAgent` shows model/effort/cap settings but no key.
+- [ ] Chat: send "Hello". The reply streams in, and the footer shows tokens and a cost below the cap.
+- [ ] Send "What automations are installed?": a `list_automations` row appears (collapsed), expands to
+      show the input `{}` and the runner's JSON; the reply summarises it. With the runner stopped, the
+      row shows an error and Claude explains it.
+- [ ] Send "Use the echo tool on 'abc' and 'def' at the same time": two echo rows, both succeed.
+- [ ] Send a second message in the same conversation: the footer's cached-token count goes up
+      (prompt caching works).
+- [ ] Ask for something long, press Stop while it streams: the partial text is marked discarded,
+      "Stopped." appears, and the next message works.
+- [ ] Settings > Spend cap $0.01, then send messages until the footer passes $0.01: the next message
+      stops at once with the spend-cap notice. New Conversation resets the footer to zero; raise the
+      cap and a message works again.
+- [ ] Settings > Model: Claude Sonnet 5.5, Effort: Low. Send a message: it works and costs less.
+- [ ] Settings > Remove Key…: the window returns to onboarding and the Keychain item is gone.
