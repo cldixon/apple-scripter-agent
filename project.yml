@@ -24,6 +24,9 @@ targets:
             subpath: Contents/Library/LaunchAgents
     dependencies:
       - package: Shared
+        product: Shared
+      - package: Shared
+        product: AgentCore
       - target: AutomationAgentRunner
         embed: true
         codeSign: true
