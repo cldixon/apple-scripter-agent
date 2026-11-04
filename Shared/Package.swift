@@ -5,10 +5,13 @@ let package = Package(
     name: "Shared",
     platforms: [.macOS(.v26)],
     products: [
-        .library(name: "Shared", targets: ["Shared"])
+        .library(name: "Shared", targets: ["Shared"]),
+        .library(name: "AgentCore", targets: ["AgentCore"])
     ],
     targets: [
         .target(name: "Shared"),
-        .testTarget(name: "SharedTests", dependencies: ["Shared"])
+        .target(name: "AgentCore"),
+        .testTarget(name: "SharedTests", dependencies: ["Shared"]),
+        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"])
     ]
 )
