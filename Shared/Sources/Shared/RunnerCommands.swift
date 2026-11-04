@@ -29,6 +29,25 @@ public enum RunnerCommand: Codable, Sendable, Equatable {
     case rollback(id: String, toCommit: String)
     /// Recreate the SQLite index from the automation folders and the run log.
     case rebuildIndex
+
+    // MARK: Agent tools (M5)
+
+    /// Full-text search of the reference library.
+    case searchReference(query: String, limit: Int)
+    case readReference(id: String)
+    /// Summary of an app's scripting dictionary (name or bundle id), filtered by `query`.
+    case introspectApp(app: String, query: String?)
+    case listApps
+    case listShortcuts
+    case checkPermissions([Permission])
+    case readAutomation(id: String)
+    /// Create or replace the draft with the manifest's id in `drafts/`, with its files.
+    case writeDraft(manifest: Data, files: [DraftFile])
+    /// Static, compile, unit and harness checks on a draft.
+    case validateDraft(id: String)
+    /// Install a draft after the user approved it (the main app asks first).
+    case installDraft(id: String)
+    case discardDraft(id: String)
 }
 
 /// The runner's answer to a `RunnerCommand`.
@@ -47,6 +66,15 @@ public enum RunnerReply: Codable, Sendable, Equatable {
     case snippet(ScriptResult)
     /// Empty `errors` means the script compiled.
     case compiled(errors: String)
+    case referenceHits([ReferenceHit])
+    case referenceChunk(ReferenceChunk)
+    case appDictionary(AppDictionarySummary)
+    case apps([AppInfo])
+    case shortcuts([String])
+    case permissions([PermissionStatus])
+    case automation(AutomationDetail)
+    case draftWritten(id: String, issues: [ValidationIssue])
+    case draftValidated(TestReport)
     case failure(String)
 }
 

@@ -214,6 +214,9 @@ final class RunnerCore {
             return .done
         case .runSnippet, .compile:
             return await handleScriptCommand(command)
+        case .searchReference, .readReference, .introspectApp, .listApps, .listShortcuts, .checkPermissions,
+             .readAutomation, .writeDraft, .validateDraft, .installDraft, .discardDraft:
+            return .failure("This runner build does not support that command yet.")
         }
     }
 
