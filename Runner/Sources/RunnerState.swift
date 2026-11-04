@@ -16,6 +16,9 @@ final class RunnerState {
     var automations: [AutomationSummary] = []
     private(set) var lastRun: RunRecord?
 
+    /// Why catalog changes are not being versioned, or nil when they are.
+    var versioningProblem: String?
+
     /// Kill switch: while paused, triggers are ignored. Manual runs and tests still work.
     var isPaused = false
 
