@@ -86,7 +86,7 @@ enum SystemActions {
     private static func waitForModifierRelease() async {
         let held: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
         for _ in 0..<50 {
-            if CGEventSource.flagsState(.combinedSessionState).intersection(held).isEmpty { return }
+            if CGEventSource.flagsState(.combinedSessionState).isDisjoint(with: held) { return }
             try? await Task.sleep(for: .milliseconds(20))
         }
     }
