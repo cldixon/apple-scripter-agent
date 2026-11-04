@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Shared
 
 /// What the runner shows in its menu bar item.
 @MainActor
@@ -12,12 +13,19 @@ final class RunnerState {
     private(set) var lastPingAt: Date?
     private(set) var lastClientVersion: String?
 
-    /// Kill switch from the handoff doc. M0 has no automations, so it only records intent.
+    var automations: [AutomationSummary] = []
+    private(set) var lastRun: RunRecord?
+
+    /// Kill switch: while paused, triggers are ignored. Manual runs and tests still work.
     var isPaused = false
 
     func recordPing(at date: Date, clientVersion: String?) {
         pingsServed += 1
         lastPingAt = date
         lastClientVersion = clientVersion
+    }
+
+    func record(_ run: RunRecord) {
+        lastRun = run
     }
 }

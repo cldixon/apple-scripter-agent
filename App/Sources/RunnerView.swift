@@ -58,6 +58,20 @@ struct RunnerView: View {
                     value: result.response.startedAt.formatted(date: .abbreviated, time: .standard)
                 )
                 LabeledContent("Pings served", value: String(result.response.pingsServed))
+                LabeledContent("Accessibility") {
+                    if result.response.accessibilityTrusted {
+                        Text("Allowed")
+                    } else {
+                        HStack {
+                            Text("Not allowed: automations cannot type or paste").foregroundStyle(.red)
+                            Button("Allow…") {
+                                Task {
+                                    await runner.requestAccessibility()
+                                }
+                            }
+                        }
+                    }
+                }
                 LabeledContent("Location", value: result.response.bundlePath)
             case .failed(let message):
                 Text(message).foregroundStyle(.red)

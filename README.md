@@ -11,8 +11,8 @@ This repo follows its milestones (M0–M6).
 
 | Milestone | What | State |
 | --- | --- | --- |
-| M0 | Skeleton: app + background runner + XPC ping | In progress |
-| M1 | Runner core: manifests, primitives, hotkeys, harness | Not started |
+| M0 | Skeleton: app + background runner + XPC ping | Done |
+| M1 | Runner core: manifests, primitives, hotkeys, harness | In progress |
 | M2 | Script steps: AppleScript, JXA, shell, Shortcuts | Not started |
 | M3 | Catalog | Not started |
 | M4 | Claude client and chat | Not started |
@@ -40,6 +40,7 @@ Runner/     Background runner: menu bar item, XPC listener, (later) triggers and
 Shared/     Swift package used by both: identifiers, XPC protocol and messages
 Config/     xcconfig build settings (Local.xcconfig holds your team id, git-ignored)
 scripts/    Build helpers
+Examples/   Sample automation folders (manifest.json + scripts)
 docs/       Developer docs and the manual test checklist
 project.yml XcodeGen spec; the .xcodeproj is generated, not committed
 ```

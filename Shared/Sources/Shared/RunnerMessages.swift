@@ -19,6 +19,8 @@ public struct PingResponse: Codable, Sendable, Equatable {
     public var receivedAt: Date
     public var bundlePath: String
     public var pingsServed: Int
+    /// Whether the runner has Accessibility permission (needed to type and paste).
+    public var accessibilityTrusted: Bool
 
     public init(
         runnerVersion: String,
@@ -26,7 +28,8 @@ public struct PingResponse: Codable, Sendable, Equatable {
         startedAt: Date,
         receivedAt: Date,
         bundlePath: String,
-        pingsServed: Int
+        pingsServed: Int,
+        accessibilityTrusted: Bool = false
     ) {
         self.runnerVersion = runnerVersion
         self.processID = processID
@@ -34,6 +37,7 @@ public struct PingResponse: Codable, Sendable, Equatable {
         self.receivedAt = receivedAt
         self.bundlePath = bundlePath
         self.pingsServed = pingsServed
+        self.accessibilityTrusted = accessibilityTrusted
     }
 }
 

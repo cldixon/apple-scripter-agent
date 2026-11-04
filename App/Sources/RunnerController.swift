@@ -84,6 +84,16 @@ final class RunnerController {
         SMAppService.openSystemSettingsLoginItems()
     }
 
+    /// Asks the runner to show the Accessibility prompt; typing and pasting need it.
+    func requestAccessibility() async {
+        do {
+            _ = try await client.send(.requestAccessibility)
+            record("Asked the runner to request Accessibility permission")
+        } catch {
+            record("Could not reach the runner: \(error.localizedDescription)")
+        }
+    }
+
     func ping() async {
         pingState = .pinging
         let clock = ContinuousClock()

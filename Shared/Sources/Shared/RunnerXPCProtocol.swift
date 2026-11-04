@@ -8,4 +8,7 @@ import Foundation
 @objc public protocol RunnerXPCProtocol {
     /// Health check. `request` is an encoded `PingRequest`; the reply is an encoded `PingResponse`.
     func ping(_ request: Data, reply: @escaping @Sendable (Data) -> Void)
+
+    /// Everything else. `command` is an encoded `RunnerCommand`; the reply is an encoded `RunnerReply`.
+    func send(_ command: Data, reply: @escaping @Sendable (Data) -> Void)
 }

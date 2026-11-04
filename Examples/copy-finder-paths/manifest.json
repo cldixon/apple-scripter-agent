@@ -1,0 +1,10 @@
+{
+  "id": "copy-finder-paths",
+  "name": "Copy paths of selected Finder items",
+  "trigger": { "type": "hotkey", "key": "C", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "applescript", "file": "scripts/selected-paths.applescript", "as": "paths" },
+    { "type": "primitive", "action": "writeClipboard", "text": "{{paths}}" }
+  ],
+  "permissions": ["automation:com.apple.finder"]
+}
