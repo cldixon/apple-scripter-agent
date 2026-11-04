@@ -171,13 +171,15 @@ struct AutomationEngineTests {
 
     @Test func slowStepTimesOut() async {
         let engine = AutomationEngine(environment: SleepingEnvironment())
-        let step = Step(.primitive(.delay(seconds: 5)), timeout: 0.2)
+        let step = Step(.primitive(.delay(seconds: 30)), timeout: 0.2)
         let clock = ContinuousClock()
         let start = clock.now
         await #expect(throws: AutomationError.timedOut(seconds: 0.2)) {
             try await engine.runStep(step, variables: [:])
         }
-        #expect(clock.now - start < .seconds(3))
+        // The step would sleep 30 s; the timeout must cut it short. The bound is loose because
+        // the whole suite runs in parallel and can delay scheduling by a few seconds.
+        #expect(clock.now - start < .seconds(10))
     }
 
     @Test func timedOutStepFailsTheRun() async {
@@ -185,10 +187,12 @@ struct AutomationEngineTests {
         let clock = ContinuousClock()
         let start = clock.now
         let record = await engine.run(
-            manifest([Step(.primitive(.delay(seconds: 5)), timeout: 0.2)]),
+            manifest([Step(.primitive(.delay(seconds: 30)), timeout: 0.2)]),
             cause: .test
         )
-        #expect(clock.now - start < .seconds(3))
+        // The step would sleep 30 s; the timeout must cut it short. The bound is loose because
+        // the whole suite runs in parallel and can delay scheduling by a few seconds.
+        #expect(clock.now - start < .seconds(10))
         #expect(record.outcome == .failed)
         #expect(record.steps.first?.error == AutomationError.timedOut(seconds: 0.2).localizedDescription)
     }
