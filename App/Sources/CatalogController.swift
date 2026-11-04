@@ -4,6 +4,13 @@ import Observation
 import Shared
 import UniformTypeIdentifiers
 
+/// Text shown in the diff sheet.
+struct DiffSheet: Identifiable {
+    let id = UUID()
+    let title: String
+    let text: String
+}
+
 /// The main app's view of installed automations. All changes go through the runner.
 @MainActor
 @Observable
@@ -12,6 +19,10 @@ final class CatalogController {
     private(set) var isPaused = false
     private(set) var recentRuns: [RunRecord] = []
     private(set) var testReports: [String: TestReport] = [:]
+    /// Committed versions per automation, newest first.
+    private(set) var versions: [String: [AutomationVersion]] = [:]
+    /// Why version history could not be loaded, if it could not.
+    private(set) var historyProblem: String?
     private(set) var lastInstall: InstallReport?
     /// The latest error or confirmation, shown at the top of the catalog.
     private(set) var message: String?
@@ -19,11 +30,26 @@ final class CatalogController {
     private(set) var busyWith: String?
 
     var selection: String?
+    var searchText = ""
+    /// Only automations with this status, or all when nil.
+    var statusFilter: AutomationStatus?
+    var diffSheet: DiffSheet?
 
     private let client = RunnerClient()
 
     var selected: AutomationSummary? {
         automations.first { $0.id == selection }
+    }
+
+    /// The list after the search field and status filter.
+    var filteredAutomations: [AutomationSummary] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return automations.filter { automation in
+            if let statusFilter, automation.status != statusFilter { return false }
+            guard !query.isEmpty else { return true }
+            return [automation.name, automation.id, automation.trigger, automation.description ?? ""]
+                .contains { $0.localizedCaseInsensitiveContains(query) }
+        }
     }
 
     func runs(for id: String) -> [RunRecord] {
@@ -33,6 +59,9 @@ final class CatalogController {
     func refresh() async {
         await perform(.listAutomations, busy: "")
         await perform(.recentRuns(limit: 50), busy: "")
+        if let selection {
+            await loadHistory(selection)
+        }
     }
 
     func installFromFile() async {
@@ -73,6 +102,47 @@ final class CatalogController {
         await perform(.listAutomations, busy: "")
     }
 
+    func setEnabled(_ id: String, enabled: Bool) async {
+        await perform(.setEnabled(id: id, enabled: enabled), busy: id)
+        await perform(.listAutomations, busy: "")
+    }
+
+    // MARK: Versions
+
+    /// Loads the selected automation's versions. A failure (for example, git missing) is
+    /// shown in the Versions section rather than as the catalog message.
+    func loadHistory(_ id: String) async {
+        do {
+            switch try await client.send(.history(id: id)) {
+            case .history(let historyID, let list):
+                versions[historyID] = list
+                historyProblem = nil
+            case .failure(let text):
+                historyProblem = text
+            default:
+                break
+            }
+        } catch {
+            historyProblem = "Runner unavailable: \(error.localizedDescription)"
+        }
+    }
+
+    /// Shows what `version` changed compared with the commit before it.
+    func showDiff(_ id: String, version: AutomationVersion) async {
+        await perform(.diff(id: id, base: nil, target: version.id), busy: id)
+    }
+
+    /// Shows the changes from `version` to the newest version.
+    func showDiffToLatest(_ id: String, version: AutomationVersion) async {
+        guard let latest = versions[id]?.first, latest.id != version.id else { return }
+        await perform(.diff(id: id, base: version.id, target: latest.id), busy: id)
+    }
+
+    func restore(_ id: String, version: AutomationVersion) async {
+        await perform(.rollback(id: id, toCommit: version.id), busy: id)
+        await refresh()
+    }
+
     func revealInFinder(_ automation: AutomationSummary) {
         NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: automation.folderPath)])
     }
@@ -111,10 +181,25 @@ final class CatalogController {
             message = report.passed ? "All tests passed for \(report.automationID)." : "Some tests failed."
         case .runs(let runs):
             recentRuns = runs
-        case .done, .snippet, .compiled:
-            break
+        default:
+            applyCatalogReply(reply)
+        }
+    }
+
+    private func applyCatalogReply(_ reply: RunnerReply) {
+        switch reply {
+        case .enabledChanged(let id, let enabled):
+            message = enabled ? "Enabled \(id)." : "Disabled \(id). Its trigger is off until you enable it again."
+        case .history(let id, let list):
+            versions[id] = list
+        case .diff(let id, let text):
+            diffSheet = DiffSheet(title: "Changes in \(id)", text: text.isEmpty ? "No changes." : text)
+        case .rolledBack(let id, let version):
+            message = "Restored \(id) to version \(version)."
         case .failure(let text):
             message = text
+        default:
+            break
         }
     }
 }

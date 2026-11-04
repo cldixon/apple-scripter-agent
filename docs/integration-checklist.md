@@ -55,3 +55,30 @@ on "AutomationAgentRunner" in System Settings > Privacy & Security > Accessibili
       ⌃⌥⌘C: the run fails with a message saying Automation permission is missing and where to allow it.
 - [ ] Build a second copy of the app with a different bundle id (or use `nc`/another tool) and try to
       connect to the Mach service: the connection is refused.
+
+## M3 — Catalog
+
+Before you start: `xcode-select -p` prints a path (the command line tools provide `/usr/bin/git`).
+Quit the runner from the gear menu so it starts fresh.
+
+- [ ] Ping from the Runner screen. `~/Library/Application Support/AutomationAgent/` now has
+      `automations/` (with `.git`), `drafts/` and `catalog.sqlite`. Automations installed
+      before M3 are in the first commit (`git -C …/automations log` shows "Start version history").
+- [ ] Catalog > Install Date Example: `git log` in `automations/` shows "Install insert-iso-date v1".
+- [ ] Edit `Examples/insert-iso-date/manifest.json` to `"version": 2` and a new name, Install
+      Manifest… with it: "Replace insert-iso-date v2". The Versions section lists v2 and v1, newest first.
+- [ ] Show diff on v2: a sheet with the manifest diff in a monospaced font; text can be selected.
+      Diff to latest on v1 shows the same change.
+- [ ] Restore this version on v1: the name goes back, Versions shows "Roll back insert-iso-date to v1"
+      on top, and ⌃⌥⌘D still types the date.
+- [ ] Switch Enabled off: status Disabled, ⌃⌥⌘D types nothing, `state.json` lists the id and
+      `git log` shows "Disable insert-iso-date". Switch it on: the hotkey works again.
+- [ ] Search for "date" and for "zzz"; filter by Disabled and by Active: the list follows.
+- [ ] Run the automation, then `sqlite3 catalog.sqlite 'select automation_id, outcome from runs'`
+      lists the run; `select id, status, current_version from automations` matches the Catalog.
+- [ ] Quit the runner, delete `catalog.sqlite` (or overwrite it with junk), Ping: the index is
+      rebuilt, with the automations and every run from `runs.jsonl`.
+- [ ] Remove: "Remove insert-iso-date" is committed and the folder is gone.
+- [ ] Without git (temporarily rename the command line tools, or test on a Mac without them):
+      the runner starts, installs still work, the gear menu says "Version history is off", and the
+      Versions section explains why.

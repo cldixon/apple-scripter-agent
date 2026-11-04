@@ -13,8 +13,8 @@ This repo follows its milestones (M0–M6).
 | --- | --- | --- |
 | M0 | Skeleton: app + background runner + XPC ping | Done |
 | M1 | Runner core: manifests, primitives, hotkeys, harness | Done |
-| M2 | Script steps: AppleScript, JXA, shell, Shortcuts | In progress |
-| M3 | Catalog | Not started |
+| M2 | Script steps: AppleScript, JXA, shell, Shortcuts | Done |
+| M3 | Catalog: git versions, SQLite index, enable/disable, rollback | In progress |
 | M4 | Claude client and chat | Not started |
 | M5 | Agent tools and reference library | Not started |
 | M6 | Monitoring | Not started |
