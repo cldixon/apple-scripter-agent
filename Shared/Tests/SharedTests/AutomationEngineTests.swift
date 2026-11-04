@@ -19,6 +19,7 @@ struct AutomationEngineTests {
         func sleep(seconds: Double) async throws {
             try await Task.sleep(for: .seconds(seconds))
         }
+        func runScript(_ request: ScriptRequest) async throws -> String { "" }
     }
 
     private func dateExample() throws -> AutomationManifest {
@@ -111,22 +112,61 @@ struct AutomationEngineTests {
         let environment = RecordingEnvironment(now: Self.clock)
         let engine = AutomationEngine(environment: environment)
         let record = await engine.run(manifest([
-            Step(.applescript(ScriptSource(source: "return 1"))),
+            Step(.accessibility(action: "click")),
             Step(.primitive(.typeText("never")))
         ]), cause: .manual)
 
         #expect(record.outcome == .failed)
-        #expect(record.error?.contains("applescript") == true)
+        #expect(record.error?.contains("ax") == true)
         #expect(record.steps.count == 1)
-        #expect(record.steps.first?.type == "applescript")
+        #expect(record.steps.first?.type == "ax")
         #expect(await environment.typed.isEmpty)
     }
 
     @Test func unsupportedStepThrowsFromRunStep() async {
         let engine = AutomationEngine(environment: RecordingEnvironment(now: Self.clock))
-        await #expect(throws: AutomationError.unsupportedStep("shell")) {
-            try await engine.runStep(Step(.shell(ScriptSource(source: "echo hi"))), variables: [:])
+        await #expect(throws: AutomationError.unsupportedStep("ax")) {
+            try await engine.runStep(Step(.accessibility(action: "click")), variables: [:])
         }
+    }
+
+    @Test func scriptStepsReceiveEarlierOutputsAndFolder() async throws {
+        let environment = RecordingEnvironment(
+            now: Self.clock,
+            clipboard: "a b c",
+            scriptOutputs: ["count.sh": "3", "return \"hi\"": "hi"]
+        )
+        let engine = AutomationEngine(environment: environment)
+        var automation = manifest([
+            Step(.primitive(.readClipboard), output: "text"),
+            Step(.shell(ScriptSource(file: "scripts/count.sh")), output: "count", timeout: 4),
+            Step(.applescript(ScriptSource(source: "return \"hi\"")), output: "greeting"),
+            Step(.shortcut(name: "Make PDF", input: "{{text}}!"), output: "pdf"),
+            Step(.primitive(.writeClipboard("{{greeting}} {{count}}")))
+        ])
+        automation.permissions = [.automation("com.apple.finder")]
+        let folder = URL(filePath: "/tmp/automation")
+
+        let record = await engine.run(automation, cause: .manual, folder: folder)
+        #expect(record.outcome == .succeeded, "\(record)")
+        #expect(await environment.clipboard == "hi 3")
+
+        let scripts = await environment.scripts
+        #expect(scripts.map(\.language) == [.shell, .applescript, .shortcut])
+        #expect(scripts[0].file == folder.appending(path: "scripts/count.sh"))
+        #expect(scripts[0].variables == ["text": "a b c"])
+        #expect(scripts[0].timeout == 4)
+        #expect(scripts[0].workingDirectory == folder)
+        #expect(scripts[1].declaredPermissions == [.automation("com.apple.finder")])
+        #expect(scripts[1].variables == ["text": "a b c", "count": "3"])
+        #expect(scripts[2].shortcutName == "Make PDF")
+        #expect(scripts[2].shortcutInput == "a b c!")
+    }
+
+    @Test func scriptFileWithoutFolderFails() async {
+        let engine = AutomationEngine(environment: RecordingEnvironment(now: Self.clock))
+        let record = await engine.run(manifest([Step(.shell(ScriptSource(file: "scripts/x.sh")))]), cause: .manual)
+        #expect(record.outcome == .failed)
     }
 
     @Test func slowStepTimesOut() async {

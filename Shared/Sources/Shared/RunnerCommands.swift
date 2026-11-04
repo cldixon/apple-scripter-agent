@@ -14,6 +14,11 @@ public enum RunnerCommand: Codable, Sendable, Equatable {
     case setPaused(Bool)
     /// Show the Accessibility prompt and open its System Settings pane.
     case requestAccessibility
+    /// Run a short script for exploration and return its output (`run_snippet`). The main app
+    /// asks the user before sending this.
+    case runSnippet(language: ScriptLanguage, source: String, timeout: Double)
+    /// Compile-check a script without running it.
+    case compile(language: ScriptLanguage, source: String)
 }
 
 /// The runner's answer to a `RunnerCommand`.
@@ -25,6 +30,9 @@ public enum RunnerReply: Codable, Sendable, Equatable {
     case tested(TestReport)
     case runs([RunRecord])
     case done
+    case snippet(ScriptResult)
+    /// Empty `errors` means the script compiled.
+    case compiled(errors: String)
     case failure(String)
 }
 

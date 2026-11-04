@@ -1,10 +1,31 @@
 {
   "id": "copy-finder-paths",
   "name": "Copy paths of selected Finder items",
-  "trigger": { "type": "hotkey", "key": "C", "modifiers": ["ctrl", "opt", "cmd"] },
+  "trigger": {
+    "type": "hotkey",
+    "key": "C",
+    "modifiers": [
+      "ctrl",
+      "opt",
+      "cmd"
+    ]
+  },
   "steps": [
-    { "type": "applescript", "file": "scripts/selected-paths.applescript", "as": "paths" },
-    { "type": "primitive", "action": "writeClipboard", "text": "{{paths}}" }
+    {
+      "type": "applescript",
+      "file": "scripts/selected-paths.applescript",
+      "as": "paths"
+    },
+    {
+      "type": "primitive",
+      "action": "writeClipboard",
+      "text": "{{paths}}"
+    }
   ],
-  "permissions": ["automation:com.apple.finder"]
+  "permissions": [
+    "automation:com.apple.finder"
+  ],
+  "description": "Copies the POSIX paths of the items selected in Finder, one per line.",
+  "tests": [],
+  "destructive": false
 }

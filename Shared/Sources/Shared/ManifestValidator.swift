@@ -22,19 +22,30 @@ public struct ValidationIssue: Codable, Sendable, Equatable, Hashable, CustomStr
 
 /// Static checks that need no runner: shape, variable flow, declared permissions.
 public enum ManifestValidator {
-    /// Step types the runner can execute in this build. Script steps arrive in M2.
-    public static let supportedStepTypes: Set<String> = ["primitive"]
+    /// Step types the runner can execute in this build. Accessibility (`ax`) steps come later.
+    public static let supportedStepTypes: Set<String> = ["primitive", "applescript", "jxa", "shell", "shortcut"]
 
+    /// Static checks. With `folder` (the automation's folder), script files are also checked
+    /// to exist and are read for the apps they control.
     public static func validate(
         _ manifest: AutomationManifest,
-        supportedStepTypes: Set<String> = supportedStepTypes
+        supportedStepTypes: Set<String> = supportedStepTypes,
+        folder: URL? = nil
     ) -> [ValidationIssue] {
         var issues: [ValidationIssue] = []
         issues += checkIdentity(manifest)
         issues += checkSteps(manifest, supportedStepTypes: supportedStepTypes)
         issues += checkPermissions(manifest)
+        issues += checkScripts(manifest, folder: folder)
         issues += checkTests(manifest)
         return issues
+    }
+
+    /// The source of a script step: inline, or read from `folder`. Nil when it cannot be read.
+    public static func scriptText(_ source: ScriptSource, folder: URL?) -> String? {
+        if let inline = source.source { return inline }
+        guard let path = source.file, let folder else { return nil }
+        return try? String(contentsOf: folder.appending(path: path), encoding: .utf8)
     }
 
     public static func hasErrors(_ issues: [ValidationIssue]) -> Bool {
@@ -118,6 +129,43 @@ public enum ManifestValidator {
                     .error,
                     "steps[\(index)]",
                     "\(primitive.actionName) needs the \"\(permission)\" permission; declare it."
+                ))
+            }
+        }
+        return issues
+    }
+
+    private static func checkScripts(_ manifest: AutomationManifest, folder: URL?) -> [ValidationIssue] {
+        var issues: [ValidationIssue] = []
+        let declaredTargets = Set(manifest.permissions.compactMap(\.automationTarget))
+        for (index, step) in manifest.steps.enumerated() {
+            let location = "steps[\(index)]"
+            let language: ScriptLanguage
+            let source: ScriptSource
+            switch step.body {
+            case .applescript(let script): (language, source) = (.applescript, script)
+            case .jxa(let script): (language, source) = (.jxa, script)
+            case .shell(let script): (language, source) = (.shell, script)
+            default: continue
+            }
+            if let path = source.file {
+                if path.hasPrefix("/") || path.split(separator: "/").contains("..") {
+                    issues.append(ValidationIssue(
+                        .error, location, "Script file must be inside the automation folder."
+                    ))
+                } else if let folder, !FileManager.default.fileExists(atPath: folder.appending(path: path).path) {
+                    issues.append(ValidationIssue(.error, location, "Script file \(path) is missing."))
+                }
+            }
+            guard let text = scriptText(source, folder: folder) else { continue }
+            let targets = ScriptAnalysis.targetApplications(in: text, language: language)
+                .filter { !ScriptAnalysis.exemptTargets.contains($0) }
+            if !targets.isEmpty, declaredTargets.isEmpty {
+                issues.append(ValidationIssue(
+                    .error,
+                    location,
+                    "The script controls \(targets.joined(separator: ", ")); declare an "
+                        + "automation:<bundle id> permission for each, e.g. automation:com.apple.finder."
                 ))
             }
         }

@@ -71,12 +71,42 @@ manifest.json ──decode──▶ AutomationManifest ──validate──▶ [
 
 Only `primitive` steps run in M1; the validator rejects other step types until M2.
 
-## Known gaps (to close before anything runs automations)
+## Script steps (M2)
 
-- The runner accepts XPC connections from any local process. Before M2 adds `run_snippet`,
-  restrict it with `NSXPCConnection.setCodeSigningRequirement` to the main app's bundle id
-  and team.
-- A step that ignores cancellation can hold up its timeout (the engine waits for it to
-  finish). Primitives are quick; M2's script steps run in child processes that are killed.
+`applescript`, `jxa`, `shell` and `shortcut` steps run as child processes of the runner
+(`osascript`, `zsh`, `shortcuts run`), so a step that overruns its timeout is killed
+(SIGTERM, then SIGKILL). Because the runner launches them, macOS attributes their Apple
+Events to the runner: the Automation prompt names "Automation Agent Runner".
+
+Input/output contract: a script receives every named output so far as one JSON object:
+
+| Language | Where the JSON arrives |
+| --- | --- |
+| AppleScript | first item of `on run argv` |
+| JXA | `run(argv)` → `argv[0]` |
+| shell | `$AUTOMATION_INPUT`, plus `$AUTOMATION_VAR_<name>` per value |
+| shortcut | the step's `input` string (templated) as the shortcut's input |
+
+Whatever the script returns or prints is the step's output (one trailing newline removed).
+
+Checks before a script runs:
+- **Install and Run Tests** compile AppleScript/JXA (`osacompile`) and syntax-check shell
+  (`zsh -n`); a script that does not compile is not installed.
+- **Declared permissions**: the validator reads `tell application "…"` / `Application("…")`
+  and requires `automation:<bundle id>` permissions; at run time the runner resolves each
+  app name to its bundle id and refuses a script that targets an undeclared app.
+- Error -1743 (Automation denied) is reported as a permission problem with where to fix it.
+
+`run_snippet` (`RunnerCommand.runSnippet`) runs a short script for exploration and returns
+stdout, stderr, exit code and duration. The main app asks the user first; the Runner screen
+has a small debug form for it.
+
+## Who may connect
+
+The runner's XPC listener requires clients to be signed as `dev.cldixon.AutomationAgent` by
+the same Apple Developer team as the runner itself (`CodeSigning.clientRequirement()`).
+A build without a team falls back to checking the bundle id only.
+
+## Known gaps
 - Harness tests need the runner to come to the front. macOS 14+ only lets it if the main
   app yields activation first, which the Catalog's Run Tests button does.

@@ -14,6 +14,8 @@ public protocol AutomationEnvironment: Sendable {
     func openURL(_ url: URL) async throws
     func launchApp(_ app: String) async throws
     func sleep(seconds: Double) async throws
+    /// Runs a script step. Must stop the script when the task is cancelled (timeout).
+    func runScript(_ request: ScriptRequest) async throws -> String
 }
 
 extension AutomationEnvironment {
@@ -27,6 +29,7 @@ public enum AutomationError: Error, Equatable, LocalizedError {
     case timedOut(seconds: Double)
     case invalidArgument(String)
     case system(String)
+    case scriptFailed(String)
 
     public var errorDescription: String? {
         switch self {
@@ -39,6 +42,8 @@ public enum AutomationError: Error, Equatable, LocalizedError {
         case .invalidArgument(let message):
             message
         case .system(let message):
+            message
+        case .scriptFailed(let message):
             message
         }
     }
@@ -55,10 +60,19 @@ public actor RecordingEnvironment: AutomationEnvironment {
     public private(set) var openedURLs: [URL] = []
     public private(set) var launchedApps: [String] = []
     public private(set) var slept: [Double] = []
+    public private(set) var scripts: [ScriptRequest] = []
+    /// Canned script outputs, keyed by inline source or file name. Missing keys return "".
+    private let scriptOutputs: [String: String]
 
-    public init(now: Date = Date(), clipboard: String = "", timeZone: TimeZone = .current) {
+    public init(
+        now: Date = Date(),
+        clipboard: String = "",
+        timeZone: TimeZone = .current,
+        scriptOutputs: [String: String] = [:]
+    ) {
         fixedNow = now
         fixedTimeZone = timeZone
+        self.scriptOutputs = scriptOutputs
         self.clipboard = clipboard
     }
 
@@ -72,4 +86,10 @@ public actor RecordingEnvironment: AutomationEnvironment {
     public func openURL(_ url: URL) { openedURLs.append(url) }
     public func launchApp(_ app: String) { launchedApps.append(app) }
     public func sleep(seconds: Double) { slept.append(seconds) }
+
+    public func runScript(_ request: ScriptRequest) -> String {
+        scripts.append(request)
+        let key = request.source ?? request.file?.lastPathComponent ?? request.shortcutName ?? ""
+        return scriptOutputs[key] ?? ""
+    }
 }

@@ -35,7 +35,7 @@ public struct TestReport: Codable, Sendable, Equatable {
 /// Runs a manifest's unit tests against `RecordingEnvironment`. Harness tests need the
 /// runner's window and are run there.
 public enum UnitTestRunner {
-    public static func run(_ manifest: AutomationManifest) async -> [TestReport.Result] {
+    public static func run(_ manifest: AutomationManifest, folder: URL? = nil) async -> [TestReport.Result] {
         var results: [TestReport.Result] = []
         for (index, test) in manifest.tests.enumerated() {
             guard case .unit(let unit) = test else { continue }
@@ -48,7 +48,7 @@ public enum UnitTestRunner {
             let engine = AutomationEngine(environment: environment)
             do {
                 let expected = try Template.render(unit.expect, variables: [:], now: now, timeZone: timeZone)
-                let actual = try await engine.output(ofStep: unit.step, in: manifest)
+                let actual = try await engine.output(ofStep: unit.step, in: manifest, folder: folder)
                 results.append(.init(
                     name: name,
                     passed: actual == expected,
