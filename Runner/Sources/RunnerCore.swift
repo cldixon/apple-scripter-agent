@@ -4,7 +4,9 @@ import Shared
 
 /// The runner's brain: loads installed automations, registers their triggers, runs them,
 /// runs their tests, and answers commands from the main app. Catalog changes (versioning,
-/// enable/disable, the SQLite index) are in `RunnerCore+Catalog.swift`.
+/// enable/disable, the SQLite index) are in `RunnerCore+Catalog.swift`, tests in
+/// `RunnerCore+Testing.swift`, and the agent's tools (reference library, apps, permissions,
+/// drafts) in `RunnerCore+Agent.swift`.
 @MainActor
 final class RunnerCore {
     let state = RunnerState()
@@ -14,10 +16,15 @@ final class RunnerCore {
     /// `catalog.sqlite`, or nil if it could not be opened.
     var index: CatalogIndex?
 
+    /// The agent's reference library and app dictionaries, built off the main actor.
+    let reference: ReferenceService
+    /// Rebuilds the reference library now and then (apps get updated).
+    var referenceRefresh: Task<Void, Never>?
+
     let logger = Logger(subsystem: Identifiers.logSubsystem, category: "core")
     private let engine = AutomationEngine(environment: SystemEnvironment())
     private let hotkeys = HotkeyCenter()
-    private let harness = HarnessController()
+    let harness = HarnessController()
 
     private(set) var manifests: [String: AutomationManifest] = [:]
     private(set) var registrationErrors: [String: String] = [:]
@@ -29,6 +36,7 @@ final class RunnerCore {
         let store = AutomationStore(root: AutomationStore.defaultRoot())
         self.store = store
         catalog = CatalogRepository(store: store)
+        reference = ReferenceService(directory: store.root.appending(path: "reference", directoryHint: .isDirectory))
     }
 
     /// Prepares the catalog repository and index, then loads automations.
@@ -40,6 +48,7 @@ final class RunnerCore {
         }
         openIndex()
         reload()
+        startReferenceLibrary()
     }
 
     /// Reads every manifest from disk and (re)registers triggers of enabled automations.
@@ -72,6 +81,7 @@ final class RunnerCore {
         }
         state.automations = summaries()
         syncIndex()
+        refreshReferenceExamples()
         logger.info("Loaded \(self.manifests.count) automations")
     }
 
@@ -87,12 +97,18 @@ final class RunnerCore {
 
     func run(id: String, cause: RunRecord.Cause) async -> RunRecord? {
         guard let manifest = manifests[id] else { return nil }
+        return await run(manifest, folder: store.folder(for: id), cause: cause)
+    }
+
+    /// Runs a manifest from `folder` (an installed automation's or a draft's) and logs the run.
+    func run(_ manifest: AutomationManifest, folder: URL, cause: RunRecord.Cause) async -> RunRecord? {
+        let id = manifest.id
         guard !running.contains(id) else {
             logger.info("\(id, privacy: .public) is already running; ignoring the new trigger")
             return nil
         }
         running.insert(id)
-        let record = await engine.run(manifest, cause: cause, folder: store.folder(for: id))
+        let record = await engine.run(manifest, cause: cause, folder: folder)
         running.remove(id)
         do {
             try store.appendRun(record)
@@ -104,51 +120,7 @@ final class RunnerCore {
         return record
     }
 
-    func test(id: String) async -> TestReport? {
-        guard let manifest = manifests[id] else { return nil }
-        let folder = store.folder(for: id)
-        let issues = ManifestValidator.validate(manifest, folder: folder)
-        var results = await compileResults(manifest, folder: folder)
-        results += await UnitTestRunner.run(manifest, folder: folder)
-        for (position, test) in manifest.tests.enumerated() {
-            guard case .harness(let harnessTest) = test else { continue }
-            results += await harness.run(harnessTest, name: "tests[\(position)] harness", manifest: manifest) {
-                await self.run(id: id, cause: .test)
-            }
-        }
-        let report = TestReport(automationID: id, ranAt: Date(), issues: issues, results: results)
-        indexTestReport(report, version: manifest.version)
-        return report
-    }
-
     // MARK: Install
-
-    /// Compiles every AppleScript/JXA step and syntax-checks every shell step.
-    func compileResults(_ manifest: AutomationManifest, folder: URL?) async -> [TestReport.Result] {
-        var results: [TestReport.Result] = []
-        for (index, step) in manifest.steps.enumerated() {
-            let language: ScriptLanguage
-            let source: ScriptSource
-            switch step.body {
-            case .applescript(let script): (language, source) = (.applescript, script)
-            case .jxa(let script): (language, source) = (.jxa, script)
-            case .shell(let script): (language, source) = (.shell, script)
-            default: continue
-            }
-            let name = "steps[\(index)] compiles"
-            guard let text = ManifestValidator.scriptText(source, folder: folder) else {
-                results.append(.init(name: name, passed: false, message: "The script could not be read."))
-                continue
-            }
-            do {
-                let errors = try await ScriptRunner.compile(language, source: text)
-                results.append(.init(name: name, passed: errors.isEmpty, message: errors.isEmpty ? "OK" : errors))
-            } catch {
-                results.append(.init(name: name, passed: false, message: error.localizedDescription))
-            }
-        }
-        return results
-    }
 
     func install(manifestData: Data, sourceFolder: URL?) async -> InstallReport {
         let manifest: AutomationManifest
@@ -215,8 +187,10 @@ final class RunnerCore {
         case .runSnippet, .compile:
             return await handleScriptCommand(command)
         case .searchReference, .readReference, .introspectApp, .listApps, .listShortcuts, .checkPermissions,
-             .readAutomation, .writeDraft, .validateDraft, .installDraft, .discardDraft:
-            return .failure("This runner build does not support that command yet.")
+             .readAutomation:
+            return await handleAgentCommand(command)
+        case .writeDraft, .validateDraft, .installDraft, .discardDraft:
+            return await handleDraftCommand(command)
         }
     }
 
@@ -250,7 +224,8 @@ final class RunnerCore {
             }
     }
 
-    private static func describe(_ error: any Error) -> String {
+    /// An error's message; for a decoding error, with the coding path that failed.
+    static func describe(_ error: any Error) -> String {
         guard let decoding = error as? DecodingError else { return error.localizedDescription }
         switch decoding {
         case .dataCorrupted(let context), .keyNotFound(_, let context),

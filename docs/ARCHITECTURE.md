@@ -206,6 +206,81 @@ Conversations live in memory only. Thinking is not displayed (its text is omitte
 default), so the transcript can be quiet between tool calls; the system prompt asks for a
 one-line note before each tool call.
 
+## Agent tools: runner side (M5)
+
+The agent's tools send the M5 `RunnerCommand`s; the runner answers them in
+`RunnerCore+Agent.swift` (routing, apps, drafts) with help from `ReferenceService` (an
+actor), `AppScanner`, `PermissionChecker` and `ReferenceSources`. Pure parts live in
+Shared so they are unit-tested: `ReferenceChunker`, `ReferenceLibrary` (SQLite + FTS5),
+`ReferenceDocuments`, `SdefDictionary`/`SdefSummarizer` and `DraftStore`.
+
+```
+~/Library/Application Support/AutomationAgent/
+  reference/library.sqlite   the reference library (rebuildable at any time: delete it)
+  drafts/<id>/               manifest.json + scripts, written by write_draft
+```
+
+**Reference library.** Markdown is split into chunks of one `#`/`##` section each; a
+section over 800 words is split at its `###` subheadings and paragraphs (code fences stay
+whole unless one fence alone is too long). Chunk ids are stable: `<prefix>/<heading slug>`,
+`-2`, `-3` for repeated headings, `-part2`, `-part3` for the pieces of a long section.
+Prefixes: the bundled file name (`recipes/text-item-delimiters`), `sdef/<bundle id>`,
+`man/<name>`, `example/<automation id>`.
+
+| Source | Origin key | Fingerprint (skip when unchanged) |
+| --- | --- | --- |
+| `Reference/*.md`, bundled in the runner's resources | `bundled:<file>` | SHA-256 of the file |
+| `/usr/bin/sdef` of every scriptable app, Finder, System Events and Standard Additions | `sdef:<bundle id>` | bundle id + version + build |
+| `man -P cat` for osascript, shortcuts, defaults, launchctl, pmset, networksetup, scutil, mdfind, plutil | `man:<name>` | macOS version string |
+| installed automations (manifest + text files) | `example:<id>` | SHA-256 of the contents |
+
+Schema: `chunks(seq INTEGER PRIMARY KEY, id TEXT UNIQUE, origin, source, title, body)`, an
+external-content FTS5 table `chunks_fts(title, body, source)` with the `porter unicode61`
+tokenizer kept in step by insert/delete triggers, and `origins(origin, fingerprint,
+updated)`. An origin is replaced as a whole in one transaction. Search turns the query into
+quoted words (letters and digits only, so quotes, operators, hyphens and parentheses can
+never cause an FTS syntax error; common stop words dropped), requires all of them, and falls
+back to any of them when nothing matches. Results are ranked by `bm25` (title 4, body 1,
+source 2) and carry `snippet()` text with `**` around matches. `read_reference` returns one
+chunk capped at 12,000 characters (`truncated`).
+
+The runner builds the library in a background task at start and every six hours; app
+scans read Info.plist files directly so updated apps are noticed, and only changed sources
+are re-read. Installs, removals and rollbacks re-index the examples. SQLite access stays on
+the `ReferenceService` actor; `sdef` and `man` run as child processes (`ScriptRunner.runTool`,
+with timeouts). The runner's menu shows one status line (chunks, last build, problems).
+
+**introspect_app.** Resolves a name ("Mail", "Mail.app"), bundle id, path or "Standard
+Additions" to an app, runs `sdef` (cached per bundle id and version, and the library's copy
+refreshed), follows `xi:include`s of standard suites, and renders compact markdown: suites →
+classes (plural, inherits, properties with type and access, elements, responds-to), commands
+(direct parameter, parameters, result) and enumerations. A query keeps suites, classes,
+commands and enumerations whose names or descriptions contain it (classes also match on
+property names, commands on parameter names); an empty match lists every class and command.
+The text is capped at 12,000 characters at a line boundary. No dictionary: "not scriptable —
+consider UI scripting via System Events or Shortcuts".
+
+**Apps, shortcuts, permissions.** `list_apps` scans /Applications, /Applications/Utilities,
+/System/Applications(/Utilities), ~/Applications (and `.app`s one folder deeper) plus Finder
+and System Events; scriptable means `NSAppleScriptEnabled` or `OSAScriptingDefinition`.
+`list_shortcuts` runs `shortcuts list`. `check_permissions` never prompts: Accessibility via
+`AXIsProcessTrusted`, Automation via `AEDeterminePermissionToAutomateTarget` (asking is off;
+-1743 denied, -1744 not determined, -600 not running → unknown, "launch the app to check"),
+Full Disk Access by opening TCC-protected files, Screen Recording via
+`CGPreflightScreenCaptureAccess`.
+
+**Drafts.** `write_draft` decodes the manifest (errors carry the coding path), checks every
+file path (relative, no `..`, no hidden components, not `manifest.json`), writes the draft
+into a staging folder and swaps it in, and returns static validation issues.
+`validate_draft` runs the same tests as Run Tests against the draft folder: static
+validation, compile checks, unit tests and harness tests (harness runs are logged with
+cause `test` under the draft's id; drafts are not registered, so harness tests only call the
+automation directly and never post its hotkey). Draft reports are not stored in the index's
+`tests` table, which is keyed by installed version. `install_draft` installs through the
+normal path (validate, compile, git commit, register) and deletes the draft on success;
+`discard_draft` deletes it. `read_automation` returns the summary, manifest JSON and the
+text files beside it (binaries and files over 64 KB are skipped).
+
 ## Known gaps
 
 - Harness tests need the runner to come to the front. macOS 14+ only lets it if the main
