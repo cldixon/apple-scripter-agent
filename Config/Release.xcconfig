@@ -1,0 +1,20 @@
+// Release configuration: signed for distribution outside the Mac App Store with a
+// Developer ID Application certificate, ready for notarization. Debug keeps the
+// automatic "Apple Development" signing from Base.xcconfig for local work.
+// See docs/RELEASING.md.
+
+#include "Base.xcconfig"
+
+// Manual signing with the Developer ID certificate of DEVELOPMENT_TEAM (set in
+// Config/Local.xcconfig, or passed to xcodebuild by scripts/release.sh). No
+// provisioning profile: the app uses no restricted entitlements.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Developer ID Application
+PROVISIONING_PROFILE_SPECIFIER =
+
+// Notarization requires the hardened runtime, a secure timestamp on every signature,
+// and no get-task-allow entitlement. Never add --deep here: each nested bundle is
+// signed by its own target and then by the embed phase (inside out).
+ENABLE_HARDENED_RUNTIME = YES
+OTHER_CODE_SIGN_FLAGS = --timestamp
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO

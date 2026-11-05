@@ -52,6 +52,15 @@ the bundle layout check. Anything that needs real permissions (launchd, XPC betw
 signed processes, Accessibility) cannot run in CI; it lives in
 [integration-checklist.md](integration-checklist.md) and is checked by hand on a Mac.
 
+## Releases
+
+Release builds use `Config/Release.xcconfig`: Developer ID signing, hardened runtime and
+secure timestamps, for notarized distribution (a paid Developer Program membership). Debug
+builds are unaffected. `make release` builds a notarized DMG locally, `make release-local`
+a signed one without notarizing, and pushing a `v*` tag runs
+`.github/workflows/release.yml`, which publishes a GitHub Release. See
+[RELEASING.md](RELEASING.md).
+
 ## Troubleshooting
 
 - **`xcodebuild requires Xcode, but active developer directory … is a command line tools
