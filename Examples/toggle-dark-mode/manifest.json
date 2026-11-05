@@ -1,0 +1,14 @@
+{
+  "id": "toggle-dark-mode",
+  "name": "Toggle dark mode",
+  "description": "Switches the Mac between light and dark appearance through System Events.",
+  "request": "Make ⌃⌥⌘L toggle between light and dark appearance.",
+  "trigger": { "type": "hotkey", "key": "L", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "applescript", "file": "scripts/toggle-appearance.applescript", "as": "appearance", "timeout": 10 }
+  ],
+  "permissions": ["automation:com.apple.systemevents"],
+  "destructive": false,
+  "tests": [],
+  "version": 1
+}

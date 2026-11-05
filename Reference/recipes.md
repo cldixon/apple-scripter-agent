@@ -334,7 +334,9 @@ end tell
 - `whose` queries on events are slow on large calendars and do not expand repeating
   events (only the first occurrence matches). For "what is on today", `icalBuddy` is not
   installed; consider a shortcut with "Find Calendar Events".
-- `all day event:true` for all-day events.
+- `allday event:true` for all-day events.
+- Permission: `automation:com.apple.iCal`. Expanding repeating events and listing today's
+  events: see recipes-apps, "Calendar: repeating and all-day events".
 
 ## Reminders
 

@@ -256,3 +256,44 @@ for each check, or ask the agent to build one.
       validate with a message pointing to run_snippet or a harness test.
 - [ ] After validating, `$TMPDIR` holds no `AutomationAgentScriptTest-*` folders.
 - [ ] Catalog > Run Tests on an installed automation with a script test runs it too.
+
+## Sweep 2 — Examples and evaluation
+
+Install each example with Catalog > Install Manifest… (`Examples/<id>/manifest.json`), remove
+any automation already on the same hotkey, and run Run Tests first: every script must compile.
+
+- [ ] `paste-plain-text`: copy text with indentation, trailing spaces and blank lines from a web
+      page; press ⌃⌥⌘V in TextEdit: trimmed lines, no blank lines, no formatting. The clipboard
+      still holds the original text afterwards.
+- [ ] `copy-safari-link`: with a Safari page whose title contains `[brackets]`, press ⌃⌥⌘K: the
+      clipboard holds `[\[brackets\] …](url)` and a notification says so. Quit Safari and press it
+      again: the notification says nothing was copied, Safari does not launch, the clipboard is
+      unchanged.
+- [ ] `copy-finder-paths`: select two files (one with a space or an accent in its name) and press
+      ⌃⌥⌘C: both paths, one per line, and a "Copied 2 paths" notification. Click the desktop with
+      nothing selected and press it again: "Nothing is selected", clipboard unchanged.
+- [ ] `quick-reminder`: press ⌃⌥⌘R in another app: the dialog appears in front. Type a line, Add:
+      a reminder due today in "Inbox" (rename your Inbox first to see it created). Press it again
+      and Cancel: nothing is added and the run is not counted as a failure.
+- [ ] `today-events`: with a one-off event later today, a repeating weekly event that started weeks
+      ago, an all-day event, and an event that already ended, choose Run Now: the notification lists
+      the all-day event first, then the remaining ones with start times, not the ended one. Check
+      the step's duration in Recent runs (timeout 60 s).
+- [ ] `archive-downloads`: in Terminal, `AUTOMATION_VAR_dryRun=1 zsh
+      Examples/archive-downloads/scripts/archive-downloads.sh` prints the plan and moves nothing.
+      Install (the card asks twice: destructive), Run Now: macOS asks for Downloads access for the
+      runner; files older than 30 days are in `Archive/<year-month>/`, existing names get " 2".
+- [ ] `meeting-mode`: without the "Turn On Do Not Disturb" shortcut, ⌃⌥⌘M fails with a clear
+      "shortcut not found" error. Create it (Set Focus → Do Not Disturb On until turned off): ⌃⌥⌘M
+      turns on Do Not Disturb and opens the Zoom link.
+- [ ] `toggle-dark-mode`: ⌃⌥⌘L switches Light ↔ Dark; the first run asks to control System Events.
+- [ ] `window-left-half`: ⌃⌥⌘← on a Safari window fills the left half below the menu bar. With a
+      second display, move the window there first: it snaps to that display's left half. Try a
+      display arranged above or left of the main one (negative coordinates).
+- [ ] `title-case-selection`: in TextEdit select "the lord of the rings: the return of the king"
+      and press ⌃⌥⌘T, releasing the keys slowly: the selection becomes "The Lord of the Rings: The
+      Return of the King" and the clipboard keeps its earlier text. With nothing selected nothing
+      changes.
+- [ ] Run one backlog idea through chat as in `docs/EVALUATING.md`, then
+      `scripts/conversation-report.py` on its log: the row shows the request, model, tool calls,
+      approvals, the installed id, the test answer and a cost close to the chat's.

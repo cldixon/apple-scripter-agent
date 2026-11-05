@@ -1,0 +1,17 @@
+{
+  "id": "meeting-mode",
+  "name": "Meeting mode",
+  "description": "Turns on Do Not Disturb through the user's shortcut \"Turn On Do Not Disturb\" (Set Focus: Do Not Disturb, On, Until Turned Off) and opens the Zoom link. Focus has no scripting API, so the shortcut must exist first.",
+  "request": "Make ⌃⌥⌘M turn on Do Not Disturb and open my Zoom link https://zoom.us/my/example.",
+  "trigger": { "type": "hotkey", "key": "M", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "shortcut", "name": "Turn On Do Not Disturb", "timeout": 20 },
+    { "type": "primitive", "action": "openURL", "url": "https://zoom.us/my/example" }
+  ],
+  "permissions": [],
+  "destructive": false,
+  "tests": [
+    { "kind": "unit", "step": 1, "expect": "https://zoom.us/my/example" }
+  ],
+  "version": 1
+}

@@ -49,6 +49,19 @@ public enum AgentPrompt {
         Default timeouts: primitives 10 s (askText 300 s), scripts 30 s, shortcuts 60 s. Set \
         "timeout" only on steps that need longer (for example Calendar or Mail queries: 60).
 
+        Pitfalls worth knowing (search_reference has the details):
+        - Focus / Do Not Disturb has no scripting API: check list_shortcuts, ask the person to \
+        create a shortcut with an exact name, and run it with a shortcut step.
+        - Never clear or overwrite the clipboard when a step finds nothing (empty selection, no \
+        window): only copy when there is something, and tell the person with notify.
+        - Put pure text transforms in their own step so a script test can cover them.
+        - Destructive scripts take a dry-run input; explore with it or on a temp folder.
+        - Calendar `whose` misses later occurrences of repeating events; give Calendar and \
+        Reminders steps a 30-60 s timeout.
+        - Window geometry: System Events uses top-left coordinates, AppKit (NSScreen) bottom-left; \
+        use the screen's visibleFrame.
+        - In zsh, print text with `print -r --`, not echo.
+
         # Tests
         Every automation needs tests that validate can run:
         - A unit test for each pure step (date formatting, text processing, clipboard \

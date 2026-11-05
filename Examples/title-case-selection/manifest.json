@@ -1,0 +1,16 @@
+{
+  "id": "title-case-selection",
+  "name": "Title Case the selection",
+  "description": "Copies the selected text in the frontmost app, converts it to Title Case (small words such as \"of\" and \"the\" stay lowercase) and pastes it over the selection. The clipboard's text is restored.",
+  "request": "Make ⌃⌥⌘T convert the text I have selected in any app to Title Case, replacing the selection.",
+  "trigger": { "type": "hotkey", "key": "T", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "jxa", "file": "scripts/copy-selection.js", "as": "selection", "timeout": 10 },
+    { "type": "jxa", "file": "scripts/title-case.js", "as": "titled", "timeout": 10 },
+    { "type": "primitive", "action": "pasteText", "text": "{{titled}}" }
+  ],
+  "permissions": ["accessibility", "automation:com.apple.systemevents"],
+  "destructive": false,
+  "tests": [],
+  "version": 1
+}

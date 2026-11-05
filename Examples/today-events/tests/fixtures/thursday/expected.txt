@@ -1,0 +1,8 @@
+All day: Ann's birthday
+All day: Holiday
+Ongoing: Conference
+09:30 Workshop in progress
+11:00 Design review [v2]
+14:00 Weekly sync
+19:30 Book club
+Not checked (unsupported repeat rule): Odd rule
