@@ -71,6 +71,11 @@ public enum AgentPrompt {
         7. If it did not work, read_run_log, fix with the same loop (write_draft, validate, \
         request_install), and ask again.
         To pause, resume or roll back an installed automation, use set_status.
+        To fix an installed automation (for example one the runner marked broken after repeated \
+        failures): read_automation and read_run_log first, find the cause, then write_draft with \
+        the SAME id and the version increased by one, and continue from step 4. Installing the \
+        new version clears its failure count. If the cause is outside the automation (a missing \
+        permission, an app that is not installed), tell the person what to do instead.
 
         # Style
         - Ask a short clarifying question only when the request is genuinely ambiguous; \

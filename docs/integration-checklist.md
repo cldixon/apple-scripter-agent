@@ -171,3 +171,18 @@ automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
       Disabled. Ask it to enable it again.
 - [ ] Ask Claude to fetch an ss64.com page: the result starts with the untrusted-content line.
       Ask it to fetch https://example.com: the tool refuses the host.
+
+## M6 — Monitoring
+
+- [ ] Install the date example and run it once from the Catalog: Health says "No recent failures."
+- [ ] In System Settings > Privacy & Security > Accessibility, turn the runner off. Press ⌃⌥⌘D in
+      TextEdit three times. After the third, a notification says the automation is broken, the
+      runner menu lists it under "Broken", and the Catalog shows status Broken with the last error.
+- [ ] Turn Accessibility back on and press ⌃⌥⌘D: it types the date, and after a Catalog refresh the
+      status is Active again with no failures.
+- [ ] Break a script by hand: edit `copy-finder-paths/scripts/selected-paths.applescript` in the
+      automations folder to call a misspelled Finder property, choose Reload Automations, and press
+      ⌃⌥⌘C three times with files selected: it becomes Broken.
+- [ ] Catalog > that automation > Fix with Agent: Chat opens with a message naming the automation
+      and its errors; the agent reads it, proposes a corrected draft at the next version, validates
+      it and asks you to approve. After approval the failure count is cleared and ⌃⌥⌘C works.

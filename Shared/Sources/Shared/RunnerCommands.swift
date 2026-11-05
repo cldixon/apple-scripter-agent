@@ -94,6 +94,8 @@ public struct AutomationSummary: Codable, Sendable, Equatable, Identifiable {
     public var registrationError: String?
     public var folderPath: String
     public var status: AutomationStatus
+    /// Recent consecutive failures of real runs (M6); broken at `FailureMonitor.brokenThreshold`.
+    public var failureStreak: FailureStreak
 
     /// `status` defaults to what the runner computes: disabled, broken (validation errors or
     /// a trigger that could not be registered) or active.
@@ -103,7 +105,8 @@ public struct AutomationSummary: Codable, Sendable, Equatable, Identifiable {
         registrationError: String?,
         folderPath: String,
         enabled: Bool = true,
-        status: AutomationStatus? = nil
+        status: AutomationStatus? = nil,
+        failureStreak: FailureStreak = FailureStreak()
     ) {
         id = manifest.id
         name = manifest.name
@@ -117,7 +120,13 @@ public struct AutomationSummary: Codable, Sendable, Equatable, Identifiable {
         self.issues = issues
         self.registrationError = registrationError
         self.folderPath = folderPath
-        self.status = status ?? .installed(enabled: enabled, issues: issues, registrationError: registrationError)
+        self.failureStreak = failureStreak
+        self.status = status ?? .installed(
+            enabled: enabled,
+            issues: issues,
+            registrationError: registrationError,
+            failingRuns: failureStreak.count
+        )
     }
 
     public var isActive: Bool {

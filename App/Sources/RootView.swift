@@ -30,11 +30,12 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
 
 /// Sidebar on the left, the selected area on the right, runner status pinned under the sidebar.
 struct RootView: View {
-    @State private var selection: SidebarItem? = .chat
+    @Environment(AppNavigator.self) private var navigator
 
     var body: some View {
+        @Bindable var navigator = navigator
         NavigationSplitView {
-            List(SidebarItem.allCases, selection: $selection) { item in
+            List(SidebarItem.allCases, selection: $navigator.selection) { item in
                 Label(item.title, systemImage: item.systemImage)
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190)
@@ -43,7 +44,7 @@ struct RootView: View {
                     .padding(10)
             }
         } detail: {
-            detail(for: selection ?? .runner)
+            detail(for: navigator.selection ?? .chat)
         }
     }
 

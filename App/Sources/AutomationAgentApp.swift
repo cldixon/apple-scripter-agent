@@ -6,6 +6,7 @@ struct AutomationAgentApp: App {
     @State private var catalog: CatalogController
     @State private var settings: AgentSettings
     @State private var apiKey = APIKeyController()
+    @State private var navigator = AppNavigator()
     @State private var chat: ChatController
 
     init() {
@@ -30,6 +31,7 @@ struct AutomationAgentApp: App {
             .environment(settings)
             .environment(apiKey)
             .environment(chat)
+            .environment(navigator)
             .task { await runner.onLaunch() }
         }
         .defaultSize(width: 960, height: 640)

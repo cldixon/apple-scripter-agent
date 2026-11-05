@@ -101,6 +101,13 @@ final class ChatController {
         interactions.cancelAll()
     }
 
+    /// Starts a fresh conversation and sends `message` as its first turn (Fix with Agent).
+    func startConversation(with message: String) {
+        newConversation()
+        draft = message
+        send()
+    }
+
     func newConversation() {
         task?.cancel()
         task = nil

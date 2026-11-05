@@ -2,7 +2,8 @@ import Foundation
 
 /// Where an automation is in its life cycle. Stored in the catalog index as the raw value.
 ///
-/// The runner computes `active`, `disabled` and `broken` today. `draft`, `validating` and
+/// The runner computes `active`, `disabled` and `broken` (validation errors, a trigger that
+/// could not be registered, or `FailureMonitor.brokenThreshold` failed runs in a row). `draft`, `validating` and
 /// `awaitingApproval` belong to the agent's drafting flow (M5/M6).
 public enum AutomationStatus: String, Codable, Sendable, CaseIterable, Identifiable {
     case draft
@@ -29,10 +30,12 @@ public enum AutomationStatus: String, Codable, Sendable, CaseIterable, Identifia
     public static func installed(
         enabled: Bool,
         issues: [ValidationIssue],
-        registrationError: String?
+        registrationError: String?,
+        failingRuns: Int = 0
     ) -> AutomationStatus {
         guard enabled else { return .disabled }
         if ManifestValidator.hasErrors(issues) || registrationError != nil { return .broken }
+        if failingRuns >= FailureMonitor.brokenThreshold { return .broken }
         return .active
     }
 }

@@ -164,6 +164,7 @@ private struct AutomationDetail: View {
             if !automation.issues.isEmpty {
                 ValidationSection(issues: automation.issues)
             }
+            MonitoringSection(automation: automation)
             VersionsSection(automation: automation)
             TestsSection(automation: automation)
             RecentRunsSection(runs: catalog.runs(for: automation.id))
