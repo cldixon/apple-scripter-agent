@@ -24,8 +24,8 @@ extension RunnerCore {
         state.automations = summaries()
         syncIndex()
         if FailureMonitor.justBroke(before: before, after: after) {
-            logger.error("\(manifest.id, privacy: .public) is broken: \(after.count) failed runs in a row")
-            FailureNotifier.postBroken(name: manifest.name, failures: after.count, lastError: after.lastError)
+            logger.error("\(manifest.id, privacy: .public) is broken: \(after.failures) failed runs in a row")
+            FailureNotifier.postBroken(name: manifest.name, failures: after.failures, lastError: after.lastError)
         }
     }
 }

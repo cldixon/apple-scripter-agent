@@ -31,7 +31,7 @@ struct FailureMonitorTests {
             run(.failed, minutesAgo: 3)
         ]
         let streak = FailureMonitor.streak(automationID: "demo", version: 1, runs: runs)
-        #expect(streak.count == 2)
+        #expect(streak.failures == 2)
         #expect(streak.lastError == "newest")
         #expect(!streak.isBroken)
     }
@@ -47,9 +47,9 @@ struct FailureMonitorTests {
             run(.failed)
         ]
         let streak = FailureMonitor.streak(automationID: "demo", version: 1, runs: runs)
-        #expect(streak.count == 3)
+        #expect(streak.failures == 3)
         #expect(streak.isBroken)
-        #expect(FailureMonitor.streak(automationID: "demo", version: 2, runs: runs).count == 0)
+        #expect(FailureMonitor.streak(automationID: "demo", version: 2, runs: runs).failures == 0)
     }
 
     @Test func updatedTracksTheThresholdCrossingOnce() {
@@ -60,7 +60,7 @@ struct FailureMonitorTests {
             if FailureMonitor.justBroke(before: streak, after: next) { crossings += 1 }
             streak = next
         }
-        #expect(streak.count == 5)
+        #expect(streak.failures == 5)
         #expect(crossings == 1)
 
         #expect(FailureMonitor.updated(streak, with: run(.failed, cause: .test)) == streak)
@@ -72,19 +72,19 @@ struct FailureMonitorTests {
         let manifest = try AutomationManifest.decode(from: Data(ExampleManifests.insertISODate.utf8))
         let healthy = AutomationSummary(
             manifest: manifest, issues: [], registrationError: nil, folderPath: "/tmp/x",
-            failureStreak: FailureStreak(count: 2)
+            failureStreak: FailureStreak(failures: 2)
         )
         #expect(healthy.status == .active)
 
         let broken = AutomationSummary(
             manifest: manifest, issues: [], registrationError: nil, folderPath: "/tmp/x",
-            failureStreak: FailureStreak(count: 3, lastError: "boom")
+            failureStreak: FailureStreak(failures: 3, lastError: "boom")
         )
         #expect(broken.status == .broken)
 
         let disabled = AutomationSummary(
             manifest: manifest, issues: [], registrationError: nil, folderPath: "/tmp/x",
-            enabled: false, failureStreak: FailureStreak(count: 3)
+            enabled: false, failureStreak: FailureStreak(failures: 3)
         )
         #expect(disabled.status == .disabled)
 
@@ -96,7 +96,7 @@ struct FailureMonitorTests {
         let manifest = try AutomationManifest.decode(from: Data(ExampleManifests.insertISODate.utf8))
         let summary = AutomationSummary(
             manifest: manifest, issues: [], registrationError: nil, folderPath: "/tmp/x",
-            failureStreak: FailureStreak(count: 3, lastError: "Step 1 failed")
+            failureStreak: FailureStreak(failures: 3, lastError: "Step 1 failed")
         )
         let runs = [
             run(.failed, id: "insert-iso-date", error: "Step 1 (primitive): not allowed"),

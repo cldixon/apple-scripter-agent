@@ -11,11 +11,11 @@ struct MonitoringSection: View {
     var body: some View {
         Section("Health") {
             let streak = automation.failureStreak
-            if streak.count == 0 {
+            if streak.failures == 0 {
                 Text("No recent failures.").foregroundStyle(.secondary)
             } else {
                 Label(
-                    "Failed \(streak.count) time\(streak.count == 1 ? "" : "s") in a row"
+                    "Failed \(streak.failures) time\(streak.failures == 1 ? "" : "s") in a row"
                         + (streak.isBroken ? " — marked broken" : ""),
                     systemImage: streak.isBroken ? "exclamationmark.octagon" : "exclamationmark.triangle"
                 )

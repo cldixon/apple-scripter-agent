@@ -3,17 +3,17 @@ import Foundation
 /// How an automation's recent real runs have gone (M6 monitoring).
 public struct FailureStreak: Codable, Sendable, Equatable {
     /// Failed runs in a row, newest backwards, for the current version.
-    public var count: Int
+    public var failures: Int
     public var lastError: String?
     public var lastFailureAt: Date?
 
-    public init(count: Int = 0, lastError: String? = nil, lastFailureAt: Date? = nil) {
-        self.count = count
+    public init(failures: Int = 0, lastError: String? = nil, lastFailureAt: Date? = nil) {
+        self.failures = failures
         self.lastError = lastError
         self.lastFailureAt = lastFailureAt
     }
 
-    public var isBroken: Bool { count >= FailureMonitor.brokenThreshold }
+    public var isBroken: Bool { failures >= FailureMonitor.brokenThreshold }
 }
 
 /// Counts consecutive failures from the run log. Only real runs count (hotkey, manual):
@@ -34,11 +34,11 @@ public enum FailureMonitor {
             case .succeeded:
                 return streak
             case .failed:
-                if streak.count == 0 {
+                if streak.failures == 0 {
                     streak.lastError = run.error
                     streak.lastFailureAt = run.startedAt
                 }
-                streak.count += 1
+                streak.failures += 1
             }
         }
         return streak
@@ -53,7 +53,7 @@ public enum FailureMonitor {
         case .succeeded:
             return FailureStreak()
         case .failed:
-            return FailureStreak(count: streak.count + 1, lastError: run.error, lastFailureAt: run.startedAt)
+            return FailureStreak(failures: streak.failures + 1, lastError: run.error, lastFailureAt: run.startedAt)
         }
     }
 
@@ -76,7 +76,7 @@ public enum FixRequest {
         let failureText = failures.isEmpty ? "- (no failed runs in the recent log)" : failures.joined(separator: "\n")
         return """
         The automation "\(automation.name)" (id: \(automation.id), version \(automation.version), \
-        trigger: \(automation.trigger)) is failing. It has failed \(automation.failureStreak.count) \
+        trigger: \(automation.trigger)) is failing. It has failed \(automation.failureStreak.failures) \
         time(s) in a row.
 
         Recent failures:

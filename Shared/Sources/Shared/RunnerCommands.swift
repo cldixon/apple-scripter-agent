@@ -125,7 +125,7 @@ public struct AutomationSummary: Codable, Sendable, Equatable, Identifiable {
             enabled: enabled,
             issues: issues,
             registrationError: registrationError,
-            failingRuns: failureStreak.count
+            failingRuns: failureStreak.failures
         )
     }
 
