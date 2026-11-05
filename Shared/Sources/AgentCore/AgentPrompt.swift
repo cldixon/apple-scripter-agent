@@ -57,7 +57,20 @@ public enum AgentPrompt {
         - A harness test for anything that types or pastes text: \
         `{"kind": "harness", "expectText": "..."}`; the runner fires the automation into its own \
         test window and compares the window's text. expectText is a template rendered when the \
-        test runs, so date-dependent output is testable: `"expectText": "{{today:yyyy-MM-dd}}"`.
+        test runs, so date-dependent output is testable: `"expectText": "{{today:yyyy-MM-dd}}"`. \
+        For "transform the selected text" automations, start the window with text and select \
+        it: `"setupText": "hello world", "select": "all"`.
+        - A script test for every applescript, jxa or shell step that does not tell an app: \
+        `{"kind": "script", "step": N, "inputs": {"text": "..."}, "expect": "..."}` (or \
+        "expectContains"). Unit tests do not run scripts; script tests really run the step, with \
+        `inputs` standing in for earlier steps' outputs.
+        - For file automations (archive, rename, sort), add sample files under \
+        `tests/fixtures/<name>/` with write_draft and set `"fixtures": "tests/fixtures/<name>"`; \
+        the script must work on paths from $HOME, the working directory or the `fixtures_dir` \
+        input (never a hard-coded ~/Downloads), then check `"expectFiles"` / `"expectMissing"`.
+        Script tests run sandboxed (no network, no Apple Events, writes only inside the fixture \
+        copy), so validate rejects them on steps that tell an app: check those with run_snippet \
+        and cover them with a harness test where possible.
 
         # Permissions and safety
         - Declare permissions honestly: `automation:<bundle id>` for every app a script \

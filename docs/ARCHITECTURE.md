@@ -298,7 +298,7 @@ Full Disk Access by opening TCC-protected files, Screen Recording via
 file path (relative, no `..`, no hidden components, not `manifest.json`), writes the draft
 into a staging folder and swaps it in, and returns static validation issues.
 `validate_draft` runs the same tests as Run Tests against the draft folder: static
-validation, compile checks, unit tests and harness tests (harness runs are logged with
+validation, compile checks, unit, script and harness tests (harness runs are logged with
 cause `test` under the draft's id; drafts are not registered, so harness tests only call the
 automation directly and never post its hotkey). Draft reports are not stored in the index's
 `tests` table, which is keyed by installed version. `install_draft` installs through the
@@ -458,6 +458,46 @@ it posts one and there is no runner command that reports the setting; adding a
   step's default) and `cancelsPrompts`, and records `selectionCopies`, `pressedKeys` and
   `prompts`. `AutomationEnvironment` has default implementations of the three new methods
   that throw `unsupportedStep`, so other environments need not implement them.
+
+## Testable scripts (Sweep 2)
+
+Unit tests run steps against `RecordingEnvironment`, where script steps return "", so they
+never exercise AppleScript, JXA or shell logic. Two additions close that gap.
+
+- **`script` tests** run one applescript, jxa or shell step for real:
+  `{"kind": "script", "step": N, "inputs": {...}, "fixtures": "tests/fixtures/<dir>",
+  "expect" | "expectContains" | "expectFiles" | "expectMissing": ...}`. `inputs` are the
+  earlier outputs, passed with the normal contract (JSON object as `argv[1]` for
+  AppleScript/JXA; `AUTOMATION_INPUT` and `AUTOMATION_VAR_<name>` for shell).
+- **Workspace.** `ScriptTestWorkspace` (Shared) makes `$TMPDIR/AutomationAgentScriptTest-<uuid>/`
+  with `work/` (a copy of the fixtures folder, or empty) and `tmp/`. The script runs with
+  `work/` as its working directory, `HOME` and the extra input `fixtures_dir`, and `tmp/` as
+  `TMPDIR`. Inline sources are written beside `work/`. The folder is deleted afterwards, so
+  the fixtures in the automation folder never change.
+- **Sandbox.** Tests run during `validate` without the person's approval, so
+  `ScriptTestPlanner` (Shared) wraps the interpreter in
+  `/usr/bin/sandbox-exec -p <profile> /bin/zsh -f -c 'cd -- "$1" … exec "$@"'`. The profile
+  (`ScriptTestSandbox.profile`) is `(allow default)` plus `(deny network*)`,
+  `(deny appleevent-send)`, `(deny user-preference-write)` and `(deny file-write*)`, then
+  re-allows writes under the workspace, the per-user cache folder
+  (`confstr(_CS_DARWIN_USER_CACHE_DIR)`) and a few device files (`/dev/null`, `/dev/fd`, …).
+  Paths are added both as given and resolved (`realpath`, so `/private/var/...`), escaped as
+  SBPL strings. Reads stay allowed. The timeout is the step's timeout.
+- **Validation.** `ManifestValidator.checkTests` requires an existing script step, at least
+  one expectation, `expect` with no `{{name}}` other than `{{today:...}}`, relative paths
+  that stay inside the folder (and, with a folder, an existing fixtures folder), and rejects
+  a step whose script names an app (`ScriptAnalysis.targetApplications`): Apple Events are
+  blocked in the sandbox, so those steps are tried with `run_snippet` or harness tests.
+- **Runner.** `ScriptTestRunner` builds the command with `ScriptTestPlanner`, runs it with
+  `ScriptRunner.runTool`, and checks it with `ScriptTestEvaluator` (exit status, output,
+  files; a failed `expectFiles` lists what the fixture folder holds). `RunnerCore.test`
+  runs compile checks, unit tests, script tests (`tests[N] script, step M`), then harness
+  tests, for installed automations and drafts alike.
+- **Harness setup.** Harness tests take `"setupText"` and `"select": "all" | "none"`
+  (default none). `HarnessController` puts the text in the window and selects it (or puts
+  the insertion point after it) before each run, so "transform the selected text"
+  automations are testable. After the hotkey, it waits for the text to change from the
+  setup text.
 
 ## Known gaps
 

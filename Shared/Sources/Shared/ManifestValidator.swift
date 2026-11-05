@@ -37,7 +37,7 @@ public enum ManifestValidator {
         issues += checkSteps(manifest, supportedStepTypes: supportedStepTypes)
         issues += checkPermissions(manifest)
         issues += checkScripts(manifest, folder: folder)
-        issues += checkTests(manifest)
+        issues += checkTests(manifest, folder: folder)
         return issues
     }
 
@@ -190,19 +190,6 @@ public enum ManifestValidator {
                         + "automation:<bundle id> permission for each, e.g. automation:com.apple.finder."
                 ))
             }
-        }
-        return issues
-    }
-
-    private static func checkTests(_ manifest: AutomationManifest) -> [ValidationIssue] {
-        var issues: [ValidationIssue] = []
-        for (index, test) in manifest.tests.enumerated() {
-            if case .unit(let unit) = test, !manifest.steps.indices.contains(unit.step) {
-                issues.append(ValidationIssue(.error, "tests[\(index)]", "Step \(unit.step) does not exist."))
-            }
-        }
-        if manifest.tests.isEmpty {
-            issues.append(ValidationIssue(.warning, "tests", "No tests declared."))
         }
         return issues
     }
