@@ -6,13 +6,16 @@
   "trigger": { "type": "hotkey", "key": "V", "modifiers": ["ctrl", "opt", "cmd"] },
   "steps": [
     { "type": "primitive", "action": "readClipboard", "as": "clip" },
-    { "type": "jxa", "file": "scripts/clean.js", "as": "cleaned", "timeout": 10 },
+    { "type": "jxa", "file": "scripts/clean.js", "as": "cleaned" },
     { "type": "primitive", "action": "pasteText", "text": "{{cleaned}}" }
   ],
   "permissions": ["accessibility"],
   "destructive": false,
   "tests": [
-    { "kind": "unit", "step": 0, "clipboard": "  Hello  \n\n\tworld \n", "expect": "  Hello  \n\n\tworld \n" }
+    { "kind": "unit", "step": 0, "clipboard": "  Hello  \n\n\tworld \n", "expect": "  Hello  \n\n\tworld \n" },
+    { "kind": "script", "step": 1, "inputs": { "clip": "  Hello  \n\n\tworld \n" }, "expect": "Hello\nworld" },
+    { "kind": "script", "step": 1, "inputs": { "clip": "\n\n   First line with spaces   \r\n\t\tIndented line\t\n\n   \n  Last line \n\n" }, "expect": "First line with spaces\nIndented line\nLast line" },
+    { "kind": "script", "step": 1, "inputs": { "clip": " \n\t\n" }, "expect": "" }
   ],
   "version": 1
 }

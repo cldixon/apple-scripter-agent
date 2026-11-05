@@ -10,6 +10,8 @@
   ],
   "permissions": [],
   "tests": [
-    { "kind": "unit", "step": 0, "clipboard": "one two three", "expect": "one two three" }
+    { "kind": "unit", "step": 0, "clipboard": "one two three", "expect": "one two three" },
+    { "kind": "script", "step": 1, "inputs": { "text": "one two three" }, "expect": "3" },
+    { "kind": "script", "step": 1, "inputs": { "text": "  spaced   out\n\tacross lines  \n" }, "expect": "4" }
   ]
 }

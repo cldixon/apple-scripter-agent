@@ -10,6 +10,8 @@
 #   folder  the folder to tidy instead of ~/Downloads.
 #   days    the age in days instead of 30 (0 archives every file, for tests).
 # Run by hand with a dry run:  AUTOMATION_VAR_dryRun=1 zsh archive-downloads.sh
+# Script tests copy tests/fixtures/downloads-case and run with HOME set to the copy, so
+# $HOME/Downloads is its Downloads folder; they pass days=0 because copied files are new.
 #
 # Output: one summary line, then one "old -> new" line per file (sorted by name).
 

@@ -11,6 +11,11 @@
   ],
   "permissions": [],
   "destructive": true,
-  "tests": [],
+  "tests": [
+    { "kind": "script", "step": 0, "inputs": { "dryRun": "1", "days": "0" }, "fixtures": "tests/fixtures/downloads-case", "expectContains": "Dry run: would move 2 file(s) older than 0 days into Archive.", "expectFiles": ["Downloads/invoice.pdf", "Downloads/notes.txt", "Downloads/Folder/inside.txt"], "expectMissing": ["Downloads/Archive"] },
+    { "kind": "script", "step": 0, "inputs": { "days": "0" }, "fixtures": "tests/fixtures/downloads-case", "expectContains": "Moved 2 file(s) older than 0 days into Archive.", "expectFiles": ["Downloads/Archive", "Downloads/Folder/inside.txt", "Downloads/.hidden-note"], "expectMissing": ["Downloads/invoice.pdf", "Downloads/notes.txt", "Downloads/Archive/Folder"] },
+    { "kind": "script", "step": 1, "inputs": { "report": "Moved 2 file(s) older than 30 days into Archive.\ninvoice.pdf -> Archive/2026-10/invoice.pdf\nnotes.txt -> Archive/2026-10/notes.txt" }, "expect": "Moved 2 file(s) older than 30 days into Archive." },
+    { "kind": "script", "step": 1, "inputs": { "report": "Moved 0 file(s) older than 30 days into Archive." }, "expect": "Moved 0 file(s) older than 30 days into Archive." }
+  ],
   "version": 1
 }

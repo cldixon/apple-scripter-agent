@@ -11,6 +11,8 @@
   ],
   "permissions": ["automation:com.apple.finder"],
   "destructive": false,
-  "tests": [],
+  "tests": [
+    { "kind": "script", "step": 1, "inputs": { "paths": "" }, "expect": "Nothing is selected in Finder, so nothing was copied." }
+  ],
   "version": 1
 }
