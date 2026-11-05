@@ -334,6 +334,26 @@ everything; `EchoTool` stays in AgentCore for its tests).
   workflow (catalog, research, write, validate, install, test, fix), and treating fetched or
   tool output as data.
 
+## Monitoring (M6)
+
+Every run is already logged (`runs.jsonl` and the index's `runs` table). On top of that:
+
+- **Failure streaks.** `FailureMonitor` (Shared) counts consecutive failed runs of an
+  automation's current version, ignoring test runs and skipped runs. The runner computes the
+  streaks from the log on reload and updates them after every run.
+- **Broken.** At `FailureMonitor.brokenThreshold` (3) failures in a row the automation's
+  status becomes `broken` (its trigger stays registered, so a transient problem can recover).
+  A success resets the streak, and so does installing a new version, because only runs of
+  the current version count.
+- **Notification.** The run that crosses the threshold posts one notification from the
+  runner ("<name> is broken… choose Fix with Agent"); later failures stay quiet until it
+  works again. The runner menu lists broken automations.
+- **Fix with Agent.** The Catalog's Health section shows the streak and the last error. Its
+  button starts a new chat with `FixRequest.message`: the automation's id, version, trigger
+  and recent failures, asking the agent to read it, find the cause, and send a corrected
+  draft with the same id and the next version through validate and approval. The system
+  prompt has the same rule for fixing installed automations.
+
 ## Known gaps
 
 - Harness tests need the runner to come to the front. macOS 14+ only lets it if the main

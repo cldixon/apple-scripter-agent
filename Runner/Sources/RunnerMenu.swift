@@ -20,6 +20,10 @@ struct RunnerMenu: View {
         if let lastRun = state.lastRun {
             Text("Last run: \(lastRun.automationID), \(lastRun.outcome.rawValue)")
         }
+        let broken = state.automations.filter { $0.status == .broken }
+        if !broken.isEmpty {
+            Text("Broken: \(broken.map(\.name).joined(separator: ", "))")
+        }
 
         Divider()
 

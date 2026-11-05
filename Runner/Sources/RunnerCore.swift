@@ -31,6 +31,8 @@ final class RunnerCore {
     private var loadFailures: [String: String] = [:]
     private var disabled: Set<String> = []
     private var running: Set<String> = []
+    /// Consecutive failures of real runs per automation (M6), recomputed from the log on reload.
+    var failureStreaks: [String: FailureStreak] = [:]
 
     init() {
         let store = AutomationStore(root: AutomationStore.defaultRoot())
@@ -79,6 +81,7 @@ final class RunnerCore {
         for (folder, message) in loadFailures {
             logger.error("Could not load \(folder, privacy: .public): \(message, privacy: .public)")
         }
+        loadFailureStreaks()
         state.automations = summaries()
         syncIndex()
         refreshReferenceExamples()
@@ -117,6 +120,7 @@ final class RunnerCore {
         }
         indexRun(record)
         state.record(record)
+        trackFailures(record, manifest: manifest)
         return record
     }
 
@@ -219,7 +223,8 @@ final class RunnerCore {
                     issues: ManifestValidator.validate(manifest, folder: store.folder(for: manifest.id)),
                     registrationError: registrationErrors[manifest.id],
                     folderPath: store.folder(for: manifest.id).path,
-                    enabled: !disabled.contains(manifest.id)
+                    enabled: !disabled.contains(manifest.id),
+                    failureStreak: failureStreaks[manifest.id] ?? FailureStreak()
                 )
             }
     }
