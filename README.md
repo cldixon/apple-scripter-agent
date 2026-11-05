@@ -18,6 +18,11 @@ This repo follows its milestones (M0–M6).
 | M4 | Claude client and chat | Done |
 | M5 | Agent tools and reference library | Done |
 | M6 | Monitoring: failure streaks, broken status, notifications, Fix with Agent | Done |
+| Sweep 2 | Testable scripts (sandboxed), copySelection / pressKeys / askText, cancel = skipped, Shortcuts/Spotlight/Siri, Setup checklist, release pipeline, examples for every backlog idea, evaluation tooling ([plan](docs/plans/sweep-2.md)) | Done; needs on-Mac testing |
+
+To measure how well the agent does, run the backlog (issues labelled `automation-idea`)
+through chat and summarise the conversation logs with `scripts/conversation-report.py`;
+see [docs/EVALUATING.md](docs/EVALUATING.md). Signed releases: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Quick start (macOS 26, Xcode 26)
 

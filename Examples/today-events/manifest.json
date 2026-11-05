@@ -6,11 +6,15 @@
   "trigger": { "type": "manual" },
   "steps": [
     { "type": "applescript", "file": "scripts/read-events.applescript", "as": "events", "timeout": 60 },
-    { "type": "jxa", "file": "scripts/format-events.js", "as": "summary", "timeout": 10 },
+    { "type": "jxa", "file": "scripts/format-events.js", "as": "summary" },
     { "type": "primitive", "action": "notify", "title": "Today", "text": "{{summary}}" }
   ],
   "permissions": ["automation:com.apple.iCal"],
   "destructive": false,
-  "tests": [],
+  "tests": [
+    { "kind": "script", "step": 1, "inputs": { "events": "now\t2026-11-05T10:00:00\nevent\tWork\tStandup\t2026-11-05T09:00:00\t2026-11-05T09:15:00\tfalse\t\t\nevent\tWork\tDesign review [v2]\t2026-11-05T11:00:00\t2026-11-05T12:00:00\tfalse\t\t\nevent\tHome\tHoliday\t2026-11-05T00:00:00\t2026-11-06T00:00:00\ttrue\t\t\nevent\tWork\tWeekly sync\t2026-10-01T14:00:00\t2026-10-01T15:00:00\tfalse\tFREQ=WEEKLY;INTERVAL=1;BYDAY=TH\t\nevent\tWork\tBiweekly 1:1\t2026-10-29T16:00:00\t2026-10-29T16:30:00\tfalse\tFREQ=WEEKLY;INTERVAL=2;BYDAY=TH\t\nevent\tHome\tGym\t2026-11-01T18:00:00\t2026-11-01T19:00:00\tfalse\tFREQ=DAILY;INTERVAL=1\t2026-11-05T18:00:00\nevent\tHome\tWater plants\t2026-11-01T08:00:00\t2026-11-01T08:10:00\tfalse\tFREQ=DAILY;COUNT=3\t\nevent\tHome\tBook club\t2026-01-01T19:30:00\t2026-01-01T21:00:00\tfalse\tFREQ=MONTHLY;BYDAY=1TH\t\nevent\tBirthdays\tAnn's birthday\t1990-11-05T00:00:00\t1990-11-06T00:00:00\ttrue\tFREQ=YEARLY;INTERVAL=1\t\nevent\tWork\tWorkshop in progress\t2026-11-05T09:30:00\t2026-11-05T10:30:00\tfalse\t\t\nevent\tWork\tConference\t2026-11-04T09:00:00\t2026-11-06T17:00:00\tfalse\t\t\nevent\tWork\tOdd rule\t2026-01-30T12:00:00\t2026-01-30T13:00:00\tfalse\tFREQ=MONTHLY;BYSETPOS=-1;BYDAY=MO,TU,WE,TH,FR\t\nevent\tWork\tEnded series\t2026-10-01T13:00:00\t2026-10-01T13:30:00\tfalse\tFREQ=WEEKLY;UNTIL=20261029T235959Z;BYDAY=TH\t\nevent\tWork\tTomorrow\t2026-11-06T09:00:00\t2026-11-06T10:00:00\tfalse\t\t" }, "expect": "All day: Ann's birthday\nAll day: Holiday\nOngoing: Conference\n09:30 Workshop in progress\n11:00 Design review [v2]\n14:00 Weekly sync\n19:30 Book club\nNot checked (unsupported repeat rule): Odd rule" },
+    { "kind": "script", "step": 1, "inputs": { "events": "now\t2026-11-05T22:00:00\nevent\tWork\tStandup\t2026-11-05T09:00:00\t2026-11-05T09:15:00\tfalse\t\t" }, "expect": "No more events today." },
+    { "kind": "script", "step": 1, "inputs": { "events": "now\t2026-11-05T08:00:00" }, "expect": "No more events today." }
+  ],
   "version": 1
 }

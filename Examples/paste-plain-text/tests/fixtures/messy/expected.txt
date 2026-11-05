@@ -1,3 +1,0 @@
-First line with spaces
-Indented line
-Last line
