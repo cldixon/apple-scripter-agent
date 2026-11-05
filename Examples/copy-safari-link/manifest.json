@@ -12,6 +12,12 @@
   ],
   "permissions": ["automation:com.apple.Safari"],
   "destructive": false,
-  "tests": [],
+  "tests": [
+    { "kind": "script", "step": 1, "inputs": { "page": "{\"title\": \"Example Domain\", \"url\": \"https://example.com/\"}" }, "expect": "[Example Domain](https://example.com/)" },
+    { "kind": "script", "step": 1, "inputs": { "page": "{\"title\": \"  [Draft] Notes on\\n  C:\\\\paths  \", \"url\": \"https://en.wikipedia.org/wiki/Foo_(bar) baz\"}" }, "expect": "[\\[Draft\\] Notes on C:\\\\paths](https://en.wikipedia.org/wiki/Foo_%28bar%29%20baz)" },
+    { "kind": "script", "step": 1, "inputs": { "page": "{\"title\": \"\", \"url\": \"https://example.com/\"}" }, "expect": "[https://example.com/](https://example.com/)" },
+    { "kind": "script", "step": 1, "inputs": { "page": "{}" }, "expect": "" },
+    { "kind": "script", "step": 2, "inputs": { "page": "{}", "link": "" }, "expect": "Safari has no open page, so nothing was copied." }
+  ],
   "version": 1
 }

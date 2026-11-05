@@ -1,14 +1,16 @@
 -- Step 1 of quick-reminder.
--- Input: {"text": "<step 0's answer>"}. Adds a reminder due today (all day) to the list
--- "Inbox", creating the list in the default account when no list has that name.
+-- Input: {"text": "<step 0's askText answer>"}. Adds a reminder due today (all day) to the
+-- list "Inbox", creating the list in the default account when no list has that name.
 -- Output: the notification text.
+-- Cancel in step 0's prompt ends the run as skipped before this step, so only an empty
+-- answer needs handling here.
 use AppleScript version "2.7"
 use framework "Foundation"
 use scripting additions
 
 on run argv
-	set reminderText to my inputValue(item 1 of argv, "text")
-	if reminderText is "" then return "Cancelled: no reminder was added."
+	set reminderText to my trimmed(my inputValue(item 1 of argv, "text"))
+	if reminderText is "" then return "Nothing was typed, so no reminder was added."
 	set now to current date
 	set today to now - (time of now)
 	tell application "Reminders"
@@ -40,3 +42,10 @@ on inputValue(jsonText, keyName)
 	if found is missing value then return ""
 	return found as text
 end inputValue
+
+-- `t` without leading and trailing spaces, tabs and line breaks.
+on trimmed(t)
+	set ca to current application
+	set whitespace to ca's NSCharacterSet's whitespaceAndNewlineCharacterSet()
+	return ((ca's NSString's stringWithString:t)'s stringByTrimmingCharactersInSet:whitespace) as text
+end trimmed

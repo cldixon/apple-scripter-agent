@@ -1,16 +1,27 @@
 {
   "id": "title-case-selection",
   "name": "Title Case the selection",
-  "description": "Copies the selected text in the frontmost app, converts it to Title Case (small words such as \"of\" and \"the\" stay lowercase) and pastes it over the selection. The clipboard's text is restored.",
+  "description": "Copies the selected text in the frontmost app, converts it to Title Case (small words such as \"of\" and \"the\" stay lowercase) and pastes it over the selection. The original selection is left on the clipboard.",
   "request": "Make ⌃⌥⌘T convert the text I have selected in any app to Title Case, replacing the selection.",
   "trigger": { "type": "hotkey", "key": "T", "modifiers": ["ctrl", "opt", "cmd"] },
   "steps": [
-    { "type": "jxa", "file": "scripts/copy-selection.js", "as": "selection", "timeout": 10 },
-    { "type": "jxa", "file": "scripts/title-case.js", "as": "titled", "timeout": 10 },
+    { "type": "primitive", "action": "copySelection", "as": "selection" },
+    { "type": "jxa", "file": "scripts/title-case.js", "as": "titled" },
     { "type": "primitive", "action": "pasteText", "text": "{{titled}}" }
   ],
-  "permissions": ["accessibility", "automation:com.apple.systemevents"],
+  "permissions": ["accessibility"],
   "destructive": false,
-  "tests": [],
+  "tests": [
+    { "kind": "script", "step": 1, "inputs": { "selection": "the lord of the rings: the return of the king" }, "expect": "The Lord of the Rings: The Return of the King" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG" }, "expect": "The Quick Brown Fox Jumps Over the Lazy Dog" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "self-driving cars in the city: state-of-the-art or out-of-date" }, "expect": "Self-Driving Cars in the City: State-of-the-Art or Out-of-Date" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "iPhone tips for NASA engineers" }, "expect": "iPhone Tips for NASA Engineers" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "what is it good for" }, "expect": "What Is It Good For" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "  first line here  \nsecond line of text\n\nélan vital and the ölkännu" }, "expect": "  First Line Here  \nSecond Line of Text\n\nÉlan Vital and the Ölkännu" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "don't stop (believin') — a song by journey" }, "expect": "Don't Stop (Believin') — A Song by Journey" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "read notes.txt at https://example.com/a for details" }, "expect": "Read notes.txt at https://example.com/a for Details" },
+    { "kind": "script", "step": 1, "inputs": { "selection": "" }, "expect": "" },
+    { "kind": "harness", "setupText": "the lord of the rings: the return of the king", "select": "all", "expectText": "The Lord of the Rings: The Return of the King" }
+  ],
   "version": 1
 }
