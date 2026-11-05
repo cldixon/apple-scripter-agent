@@ -29,7 +29,7 @@ struct RequestBuilderTests {
         #expect(body["max_tokens"]?.intValue == 64_000)
         #expect(body["stream"]?.boolValue == true)
         let highEffort: JSONValue = ["effort": "high"]
-        let adaptive: JSONValue = ["type": "adaptive"]
+        let adaptive: JSONValue = ["type": "adaptive", "display": "summarized"]
         #expect(body["output_config"] == highEffort)
         #expect(body["thinking"] == adaptive)
         #expect(body["fallbacks"]?.stringValue == "default")
