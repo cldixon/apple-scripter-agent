@@ -431,6 +431,34 @@ missing. Notifications have no check because the runner asks for permission the 
 it posts one and there is no runner command that reports the setting; adding a
 `notificationStatus` permission to `check_permissions` would make it a real row.
 
+## Runtime primitives and cancel handling (Sweep 2)
+
+- **New primitives.** `copySelection` (no arguments) waits for the hotkey's modifiers to be
+  released, notes `NSPasteboard.general.changeCount`, posts ⌘C and polls for about a second
+  for the clipboard to change; it returns the copied text, and the engine fails the step
+  with "Nothing is selected" when nothing (or no text) was copied. The selection stays on
+  the clipboard. `pressKeys` (`"keys": "cmd+shift+4"`) is parsed by `KeyCombo` (modifiers
+  `cmd`/`ctrl`/`opt`/`shift`, also `command`/`control`/`option`/`alt`, plus exactly one
+  `KeyCodes` key name) and posted after the modifiers are released. Both need the
+  `accessibility` permission. `askText` (`"prompt"`, optional `"default"`, both templated)
+  shows the runner's own `TextPrompt`: an `NSAlert` with a text field, displayed without a
+  modal run loop at `.floating` level after `NSApp.activate()` (activation can be refused
+  on macOS 14+, so the floating level keeps it visible). The step timeout closes it.
+- **Cancel is not a failure.** `AutomationError.cancelledByUser` stops a run with outcome
+  `skipped` and error "Cancelled by the user"; the step result is `skipped` too. It comes
+  from askText's Cancel, and from scripts whose error output contains `(-128)` or "User
+  canceled" (`AutomationError.isUserCancel`, checked in `ScriptRunner.run`). `FailureMonitor`
+  ignores skipped runs, so cancelling never pushes an automation toward Broken.
+- **Modifier release before scripts.** `SystemEnvironment.runScript` waits (up to about a
+  second, as typeText does) for ⌃⌥⌘⇧ to be released before an AppleScript or JXA step, so
+  `keystroke` and `key code` are not combined with the held hotkey modifiers.
+- **Default timeouts by step type** (`Step.defaultTimeout(for:)`): primitives 10 s (askText
+  300 s), AppleScript, JXA and shell 30 s, shortcuts 60 s. An explicit `timeout` wins.
+- **Testing.** `RecordingEnvironment` takes `selection`, `answer` (nil answers with the
+  step's default) and `cancelsPrompts`, and records `selectionCopies`, `pressedKeys` and
+  `prompts`. `AutomationEnvironment` has default implementations of the three new methods
+  that throw `unsupportedStep`, so other environments need not implement them.
+
 ## Known gaps
 
 - Harness tests need the runner to come to the front. macOS 14+ only lets it if the main

@@ -109,6 +109,9 @@ public enum ManifestValidator {
             if step.effectiveTimeout <= 0 {
                 issues.append(ValidationIssue(.error, location, "Timeout must be positive."))
             }
+            if case .primitive(let primitive) = step.body {
+                issues += checkPrimitive(primitive, location: location)
+            }
             if let output = step.output {
                 if defined.contains(output) {
                     issues.append(ValidationIssue(.warning, location, "Output name \"\(output)\" is reused."))
@@ -117,6 +120,25 @@ public enum ManifestValidator {
             }
         }
         return issues
+    }
+
+    /// Arguments of primitives that can be checked before running.
+    private static func checkPrimitive(_ primitive: Primitive, location: String) -> [ValidationIssue] {
+        switch primitive {
+        case .pressKeys(let keys):
+            do {
+                _ = try KeyCombo.parse(keys)
+            } catch {
+                return [ValidationIssue(.error, location, "pressKeys: \(error.localizedDescription)")]
+            }
+        case .askText(let prompt, _):
+            if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return [ValidationIssue(.error, location, "askText needs a prompt to show the user.")]
+            }
+        default:
+            break
+        }
+        return []
     }
 
     private static func checkPermissions(_ manifest: AutomationManifest) -> [ValidationIssue] {

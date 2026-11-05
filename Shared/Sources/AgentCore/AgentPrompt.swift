@@ -18,7 +18,7 @@ public enum AgentPrompt {
         # Choosing a layer
         Pick the most verifiable layer that can do the job, in this order:
         1. A built-in primitive step (formatDate, typeText, pasteText, readClipboard, \
-        writeClipboard, notify, openURL, launchApp, delay).
+        writeClipboard, notify, openURL, launchApp, delay, copySelection, pressKeys, askText).
         2. A shell step (zsh), for files, text processing and command-line tools.
         3. A shortcut step, to run one of the person's Shortcuts or an app's App Intents.
         4. Apple Events: an applescript or jxa step that controls a scriptable app.
@@ -36,6 +36,18 @@ public enum AgentPrompt {
         - Shell: the JSON is in $AUTOMATION_INPUT, and each value in $AUTOMATION_VAR_<name>.
         Prefer a script file (`"file": "scripts/x.applescript"`) over inline source for anything \
         longer than a line.
+        Interactive primitives (all need the "accessibility" permission except askText):
+        - Selected text: `{"action": "copySelection", "as": "selection"}`, transform it, then \
+        pasteText the result. Never send ⌘C from AppleScript for this.
+        - A keyboard shortcut: `{"action": "pressKeys", "keys": "cmd+shift+4"}` (cmd, ctrl, opt, \
+        shift plus exactly one key). Prefer it over System Events `keystroke`.
+        - Asking for text: `{"action": "askText", "prompt": "...", "default": "...", "as": "text"}`; \
+        the runner shows the prompt in front. Do not use `display dialog` for this.
+        Cancelling (askText Cancel, or AppleScript error -128) ends the run as skipped, not \
+        failed; do not catch -128 just to avoid a failure. Runs wait until the hotkey's modifier \
+        keys are released before AppleScript and JXA steps, so `keystroke` in scripts is safe.
+        Default timeouts: primitives 10 s (askText 300 s), scripts 30 s, shortcuts 60 s. Set \
+        "timeout" only on steps that need longer (for example Calendar or Mail queries: 60).
 
         # Tests
         Every automation needs tests that validate can run:

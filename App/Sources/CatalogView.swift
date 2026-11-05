@@ -298,11 +298,27 @@ private struct RecentRunsSection: View {
 private struct RunRow: View {
     let run: RunRecord
 
+    private static func symbol(for outcome: RunRecord.Outcome) -> String {
+        switch outcome {
+        case .succeeded: "checkmark.circle"
+        case .skipped: "minus.circle"
+        case .failed: "xmark.circle"
+        }
+    }
+
+    private static func color(for outcome: RunRecord.Outcome) -> Color {
+        switch outcome {
+        case .succeeded: .green
+        case .skipped: .secondary
+        case .failed: .red
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Image(systemName: run.outcome == .succeeded ? "checkmark.circle" : "xmark.circle")
-                    .foregroundStyle(run.outcome == .succeeded ? Color.green : Color.red)
+                Image(systemName: Self.symbol(for: run.outcome))
+                    .foregroundStyle(Self.color(for: run.outcome))
                 Text(run.startedAt.formatted(date: .abbreviated, time: .standard))
                 Text(run.cause.rawValue).foregroundStyle(.secondary)
                 Spacer()
