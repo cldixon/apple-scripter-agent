@@ -186,3 +186,28 @@ automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
 - [ ] Catalog > that automation > Fix with Agent: Chat opens with a message naming the automation
       and its errors; the agent reads it, proposes a corrected draft at the next version, validates
       it and asks you to approve. After approval the failure count is cleared and ⌃⌥⌘C works.
+
+## Sweep 2 — Runtime primitives
+
+Install a scratch automation (manual or hotkey trigger, `"permissions": ["accessibility"]`)
+for each check, or ask the agent to build one.
+
+- [ ] `copySelection` → `pasteText "[{{selection}}]"` on ⌃⌥⌘B: select a word in TextEdit and
+      press the hotkey while still holding the modifiers a moment: the word is replaced by
+      `[word]` (⌘C was not combined with ⌃⌥). The selection is on the clipboard afterwards.
+- [ ] Same automation with nothing selected: the run fails with "Nothing is selected" within
+      about a second, nothing is pasted.
+- [ ] `pressKeys "cmd+shift+4"`: the screenshot crosshair appears (press Escape). An install
+      with `"keys": "cmd+hyper"` is refused by the validator with "Unknown key".
+- [ ] `askText` with `"prompt": "Name?"`, `"default": "{{today:yyyy}}"` → `notify "{{name}}"`,
+      run by hotkey while another app is frontmost: the panel appears in front with the year
+      selected, takes typing directly (or after one click if activation was refused), and
+      OK shows the notification. Return confirms, Escape cancels.
+- [ ] Press Cancel: the run log shows outcome `skipped` with "Cancelled by the user", no
+      notification, and three cancels in a row do not make the automation Broken.
+- [ ] An AppleScript step `display dialog "Go?"`: press Cancel. The run is `skipped`, not
+      failed (error -128).
+- [ ] An AppleScript step `tell application "System Events" to keystroke "a"` on ⌃⌥⌘K with
+      TextEdit frontmost: a plain `a` is typed, not a ⌃⌥⌘A shortcut.
+- [ ] A shell step `sleep 20` without `timeout` succeeds (default 30 s); `sleep 40` times out
+      after about 30 s. An askText left open for 300 s closes and the run times out.

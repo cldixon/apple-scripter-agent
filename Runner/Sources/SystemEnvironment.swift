@@ -47,7 +47,23 @@ struct SystemEnvironment: AutomationEnvironment {
 
     func runScript(_ request: ScriptRequest) async throws -> String {
         try await checkAutomationTargets(request)
+        if request.language == .applescript || request.language == .jxa {
+            // `keystroke` and `key code` would combine with the hotkey's held modifiers.
+            await SystemActions.waitForModifierRelease()
+        }
         return try await ScriptRunner.run(request)
+    }
+
+    func copySelection() async throws -> String {
+        try await SystemActions.copySelection()
+    }
+
+    func pressKeys(_ combo: KeyCombo) async throws {
+        try await SystemActions.press(combo)
+    }
+
+    func askText(prompt: String, defaultValue: String) async throws -> String? {
+        await TextPrompt.ask(prompt: prompt, defaultValue: defaultValue)
     }
 
     /// The runner refuses a script that controls an app the manifest did not declare.
