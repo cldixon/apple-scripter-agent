@@ -186,3 +186,22 @@ automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
 - [ ] Catalog > that automation > Fix with Agent: Chat opens with a message naming the automation
       and its errors; the agent reads it, proposes a corrected draft at the next version, validates
       it and asks you to approve. After approval the failure count is cleared and ⌃⌥⌘C works.
+
+## Sweep 2 — Testable scripts
+
+- [ ] Chat: "a hotkey that uppercases the selected text". The draft has a `script` test for the
+      transform step (e.g. `"inputs": {"text": "hello"}`, `"expect": "HELLO"`) and a harness test
+      with `"setupText": "hello", "select": "all"`. Validate shows `tests[N] script, step M` and
+      the harness lines passing; the harness window briefly shows "hello" selected.
+- [ ] Chat: "a hotkey that moves PDFs older than a week from Downloads into Downloads/Archive".
+      The draft ships `tests/fixtures/...` files and a `script` test with `fixtures`,
+      `expectFiles` and `expectMissing`. Validate passes, and nothing in ~/Downloads changed.
+- [ ] Break the script on purpose (move to `~/Desktop` instead of the fixture folder): the script
+      test fails with "Operation not permitted" plus the sandbox explanation; ~/Desktop is unchanged.
+- [ ] A script test whose shell step runs `curl https://example.com` fails (no network), and one
+      whose shell step runs `osascript -e 'tell application "Finder" to get name'` fails without an
+      Automation prompt appearing.
+- [ ] A `script` test on an AppleScript step with `tell application "Finder"` is rejected by
+      validate with a message pointing to run_snippet or a harness test.
+- [ ] After validating, `$TMPDIR` holds no `AutomationAgentScriptTest-*` folders.
+- [ ] Catalog > Run Tests on an installed automation with a script test runs it too.

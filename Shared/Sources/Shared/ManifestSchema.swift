@@ -90,8 +90,43 @@ public enum ManifestSchema {
               "properties": {
                 "kind": { "const": "harness" },
                 "fire": { "enum": ["trigger", "handler"], "default": "trigger" },
+                "setupText": { "type": "string", "description": "Text the harness window starts with." },
+                "select": {
+                  "enum": ["all", "none"],
+                  "default": "none",
+                  "description": "all: select setupText before running; none: insertion point after it."
+                },
                 "expectText": { "type": "string" }
               }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "step"],
+              "additionalProperties": false,
+              "description": "Runs one script step for real, sandboxed: no network or Apple Events.",
+              "properties": {
+                "kind": { "const": "script" },
+                "step": { "type": "integer", "minimum": 0 },
+                "inputs": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" },
+                  "description": "Earlier outputs by name, passed as in a normal run; fixtures_dir is added."
+                },
+                "fixtures": {
+                  "type": "string",
+                  "description": "Folder copied to a temp folder: the cwd, HOME and fixtures_dir."
+                },
+                "expect": { "type": "string", "description": "Exact output; may use {{today:<pattern>}}." },
+                "expectContains": { "type": "string" },
+                "expectFiles": { "type": "array", "items": { "type": "string" } },
+                "expectMissing": { "type": "array", "items": { "type": "string" } }
+              },
+              "anyOf": [
+                { "required": ["expect"] },
+                { "required": ["expectContains"] },
+                { "required": ["expectFiles"] },
+                { "required": ["expectMissing"] }
+              ]
             }
           ]
         }
