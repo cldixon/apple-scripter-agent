@@ -165,7 +165,7 @@ struct RequestInstallTool: AgentTool {
         guard let draft = await context.drafts.draft(id) else {
             throw ToolError("No draft \"\(id)\" was written in this conversation. Call write_draft, then validate.")
         }
-        guard let report = draft.report else {
+        guard draft.report != nil else {
             throw ToolError("Draft \"\(id)\" has not been validated since it was last written. Call validate first.")
         }
         let approval = InstallPreview.make(draftID: id, summary: summary, draft: draft)
