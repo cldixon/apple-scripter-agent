@@ -1,0 +1,16 @@
+{
+  "id": "quick-reminder",
+  "name": "Quick reminder to Inbox",
+  "description": "Asks for a line of text and adds it as a reminder due today in the Reminders list \"Inbox\", creating the list if it is missing. Cancel adds nothing.",
+  "request": "Make a shortcut that asks me for a line of text and adds it as a new reminder in my Reminders \"Inbox\" list, due today.",
+  "trigger": { "type": "hotkey", "key": "R", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "applescript", "file": "scripts/ask-text.applescript", "as": "text", "timeout": 120 },
+    { "type": "applescript", "file": "scripts/add-reminder.applescript", "as": "result", "timeout": 45 },
+    { "type": "primitive", "action": "notify", "title": "Reminders", "text": "{{result}}" }
+  ],
+  "permissions": ["automation:com.apple.systemevents", "automation:com.apple.reminders"],
+  "destructive": false,
+  "tests": [],
+  "version": 1
+}

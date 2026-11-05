@@ -1,0 +1,16 @@
+{
+  "id": "today-events",
+  "name": "Today's remaining events",
+  "description": "Shows a notification listing the calendar events still to come today (including ones in progress) with their start times, all-day events first. Repeating events are expanded.",
+  "request": "Make a manual automation that shows a notification listing today's remaining calendar events with their start times.",
+  "trigger": { "type": "manual" },
+  "steps": [
+    { "type": "applescript", "file": "scripts/read-events.applescript", "as": "events", "timeout": 60 },
+    { "type": "jxa", "file": "scripts/format-events.js", "as": "summary", "timeout": 10 },
+    { "type": "primitive", "action": "notify", "title": "Today", "text": "{{summary}}" }
+  ],
+  "permissions": ["automation:com.apple.iCal"],
+  "destructive": false,
+  "tests": [],
+  "version": 1
+}

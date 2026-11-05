@@ -1,0 +1,14 @@
+{
+  "id": "window-left-half",
+  "name": "Window to left half",
+  "description": "Resizes the frontmost app's front window to the left half of the screen it is on, below the menu bar and beside or above the Dock.",
+  "request": "Make ⌃⌥⌘← resize the frontmost window to fill the left half of the screen it's on.",
+  "trigger": { "type": "hotkey", "key": "left", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "jxa", "file": "scripts/left-half.js", "as": "result", "timeout": 10 }
+  ],
+  "permissions": ["accessibility", "automation:com.apple.systemevents"],
+  "destructive": false,
+  "tests": [],
+  "version": 1
+}
