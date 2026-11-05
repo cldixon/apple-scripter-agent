@@ -6,11 +6,16 @@ import Synchronization
 /// be killed. Because the runner launches them, macOS attributes their Apple Events to the
 /// runner: its Automation permissions apply and its name appears in the prompts.
 enum ScriptRunner {
-    /// Runs `request` and returns its output, or throws with the script's error text.
+    /// Runs `request` and returns its output, or throws with the script's error text. A script
+    /// the user cancelled (AppleScript error -128, e.g. Cancel in `display dialog`, also via
+    /// `osascript` in a shell script) throws `AutomationError.cancelledByUser`.
     static func run(_ request: ScriptRequest) async throws -> String {
         let result = try await execute(request)
         if result.timedOut { throw AutomationError.timedOut(seconds: request.timeout) }
         guard result.exitCode == 0 else {
+            if AutomationError.isUserCancel(scriptError: result.errorOutput) {
+                throw AutomationError.cancelledByUser
+            }
             throw AutomationError.scriptFailed(explain(result.errorOutput, exitCode: result.exitCode))
         }
         return result.output

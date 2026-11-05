@@ -119,7 +119,11 @@ enum InstallPreview {
         case .openURL(let url): details.append("url: \(url)")
         case .launchApp(let app): details.append("app: \(app)")
         case .delay(let seconds): details.append("seconds: \(seconds.formatted())")
-        case .readClipboard: break
+        case .pressKeys(let keys): details.append("keys: \(keys)")
+        case .askText(let prompt, let defaultValue):
+            details.append("prompt: \(prompt)")
+            if let defaultValue { details.append("default: \(defaultValue)") }
+        case .readClipboard, .copySelection: break
         }
         return details
     }

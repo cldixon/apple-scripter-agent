@@ -13,7 +13,8 @@ public enum KeyCodes {
         "TAB": 0x30, "SPACE": 0x31, "`": 0x32, "DELETE": 0x33, "ESCAPE": 0x35,
         "F1": 0x7A, "F2": 0x78, "F3": 0x63, "F4": 0x76, "F5": 0x60, "F6": 0x61,
         "F7": 0x62, "F8": 0x64, "F9": 0x65, "F10": 0x6D, "F11": 0x67, "F12": 0x6F,
-        "LEFT": 0x7B, "RIGHT": 0x7C, "DOWN": 0x7D, "UP": 0x7E
+        "LEFT": 0x7B, "RIGHT": 0x7C, "DOWN": 0x7D, "UP": 0x7E,
+        "HOME": 0x73, "END": 0x77, "PAGEUP": 0x74, "PAGEDOWN": 0x79, "FORWARDDELETE": 0x75
     ]
 
     /// Key code for a manifest key name such as `D`, `7`, `F5` or `space` (case-insensitive).

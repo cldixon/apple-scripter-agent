@@ -212,3 +212,47 @@ automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
       Automation Agent" asks which one.
 - [ ] Install a second automation, refresh the Catalog, then ask Siri for it by name: the new
       name is recognised without rebuilding the app.
+
+## Sweep 2 — Runtime primitives
+
+Install a scratch automation (manual or hotkey trigger, `"permissions": ["accessibility"]`)
+for each check, or ask the agent to build one.
+
+- [ ] `copySelection` → `pasteText "[{{selection}}]"` on ⌃⌥⌘B: select a word in TextEdit and
+      press the hotkey while still holding the modifiers a moment: the word is replaced by
+      `[word]` (⌘C was not combined with ⌃⌥). The selection is on the clipboard afterwards.
+- [ ] Same automation with nothing selected: the run fails with "Nothing is selected" within
+      about a second, nothing is pasted.
+- [ ] `pressKeys "cmd+shift+4"`: the screenshot crosshair appears (press Escape). An install
+      with `"keys": "cmd+hyper"` is refused by the validator with "Unknown key".
+- [ ] `askText` with `"prompt": "Name?"`, `"default": "{{today:yyyy}}"` → `notify "{{name}}"`,
+      run by hotkey while another app is frontmost: the panel appears in front with the year
+      selected, takes typing directly (or after one click if activation was refused), and
+      OK shows the notification. Return confirms, Escape cancels.
+- [ ] Press Cancel: the run log shows outcome `skipped` with "Cancelled by the user", no
+      notification, and three cancels in a row do not make the automation Broken.
+- [ ] An AppleScript step `display dialog "Go?"`: press Cancel. The run is `skipped`, not
+      failed (error -128).
+- [ ] An AppleScript step `tell application "System Events" to keystroke "a"` on ⌃⌥⌘K with
+      TextEdit frontmost: a plain `a` is typed, not a ⌃⌥⌘A shortcut.
+- [ ] A shell step `sleep 20` without `timeout` succeeds (default 30 s); `sleep 40` times out
+      after about 30 s. An askText left open for 300 s closes and the run times out.
+
+## Sweep 2 — Testable scripts
+
+- [ ] Chat: "a hotkey that uppercases the selected text". The draft has a `script` test for the
+      transform step (e.g. `"inputs": {"text": "hello"}`, `"expect": "HELLO"`) and a harness test
+      with `"setupText": "hello", "select": "all"`. Validate shows `tests[N] script, step M` and
+      the harness lines passing; the harness window briefly shows "hello" selected.
+- [ ] Chat: "a hotkey that moves PDFs older than a week from Downloads into Downloads/Archive".
+      The draft ships `tests/fixtures/...` files and a `script` test with `fixtures`,
+      `expectFiles` and `expectMissing`. Validate passes, and nothing in ~/Downloads changed.
+- [ ] Break the script on purpose (move to `~/Desktop` instead of the fixture folder): the script
+      test fails with "Operation not permitted" plus the sandbox explanation; ~/Desktop is unchanged.
+- [ ] A script test whose shell step runs `curl https://example.com` fails (no network), and one
+      whose shell step runs `osascript -e 'tell application "Finder" to get name'` fails without an
+      Automation prompt appearing.
+- [ ] A `script` test on an AppleScript step with `tell application "Finder"` is rejected by
+      validate with a message pointing to run_snippet or a harness test.
+- [ ] After validating, `$TMPDIR` holds no `AutomationAgentScriptTest-*` folders.
+- [ ] Catalog > Run Tests on an installed automation with a script test runs it too.
