@@ -44,18 +44,32 @@ public struct AgentRunner: Sendable {
     public let transport: any MessagesTransport
     public let tools: ToolRegistry
     public let configuration: AgentConfiguration
+    /// Where the full exchange is recorded, if anywhere.
+    public let log: ConversationLog?
 
     /// Tool output beyond this many characters is cut, to keep the context small.
     static let maxToolOutputLength = 50_000
 
-    public init(transport: any MessagesTransport, tools: ToolRegistry, configuration: AgentConfiguration) {
+    public init(
+        transport: any MessagesTransport,
+        tools: ToolRegistry,
+        configuration: AgentConfiguration,
+        log: ConversationLog? = nil
+    ) {
         self.transport = transport
         self.tools = tools
         self.configuration = configuration
+        self.log = log
     }
 
     /// Runs until the turn ends. Cancel the calling task to stop.
     public func run(_ conversation: Conversation, emit: Emit) async -> AgentRunResult {
+        let result = await runLoop(conversation, emit: emit)
+        log?.recordStop(result.stop, conversation: result.conversation)
+        return result
+    }
+
+    private func runLoop(_ conversation: Conversation, emit: Emit) async -> AgentRunResult {
         var state = conversation
         var toolRounds = 0
         while true {
@@ -142,7 +156,12 @@ public struct AgentRunner: Sendable {
                 continue
             }
             await emit(.toolCall(id: use.id, name: use.name, input: use.input.compactText))
+            log?.record("tool_call", ["id": .string(use.id), "name": .string(use.name), "input": use.input])
+            let started = ContinuousClock.now
             let outcome = await execute(use, invalidInput: response.invalidToolInputs[use.id])
+            log?.recordToolResult(
+                use, output: outcome.output, isError: outcome.isError, duration: ContinuousClock.now - started
+            )
             await emit(.toolResult(id: use.id, output: outcome.output, isError: outcome.isError))
             results.append(.toolResult(toolUseID: use.id, content: outcome.output, isError: outcome.isError))
         }
@@ -191,22 +210,35 @@ public struct AgentRunner: Sendable {
             messages: state.messages
         )
         let encodedBody = try body.encoded()
+        log?.recordRequest(body: body, byteCount: encodedBody.count)
         let request = MessagesRequest(body: encodedBody, betas: configuration.betas)
-        let lines = try await transport.lines(for: request)
-        await emit(.responseStarted)
-        var parser = SSEParser()
+        let started = ContinuousClock.now
         var accumulator = MessageAccumulator()
-        for try await line in lines {
-            if let event = parser.feed(line) {
+        do {
+            let lines = try await transport.lines(for: request)
+            await emit(.responseStarted)
+            var parser = SSEParser()
+            for try await line in lines {
+                if let event = parser.feed(line) {
+                    try await apply(event, to: &accumulator, emit: emit)
+                }
+            }
+            if let event = parser.finish() {
                 try await apply(event, to: &accumulator, emit: emit)
             }
+            try Task.checkCancellation()
+            guard accumulator.isComplete else { throw ClaudeAPIError.incompleteStream }
+        } catch {
+            log?.recordResponseFailure(
+                error, partial: accumulator.finish().content, duration: ContinuousClock.now - started
+            )
+            throw error
         }
-        if let event = parser.finish() {
-            try await apply(event, to: &accumulator, emit: emit)
-        }
-        try Task.checkCancellation()
-        guard accumulator.isComplete else { throw ClaudeAPIError.incompleteStream }
-        return accumulator.finish()
+        let response = accumulator.finish()
+        let pricing = ClaudeModel.pricing(forModelID: response.model ?? configuration.model)
+        let duration = ContinuousClock.now - started
+        log?.recordResponse(response, costUSD: pricing.cost(of: response.usage), duration: duration)
+        return response
     }
 
     private func apply(_ event: SSEEvent, to accumulator: inout MessageAccumulator, emit: Emit) async throws {

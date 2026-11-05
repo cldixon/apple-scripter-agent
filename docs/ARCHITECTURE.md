@@ -202,9 +202,27 @@ ChatView ─▶ ChatController ─▶ AgentRunner ─▶ MessagesTransport ─�
   and 1.25x input for cache writes. A response served by another model (a fallback) is priced
   as Opus 5.5 unless it is Sonnet 5.5, so the estimate errs high.
 
-Conversations live in memory only. Thinking is not displayed (its text is omitted by
-default), so the transcript can be quiet between tool calls; the system prompt asks for a
-one-line note before each tool call.
+Conversations live in memory and cannot be resumed, but each one is recorded as it happens
+by a `ConversationLog` (AgentCore) in
+`~/Library/Application Support/AutomationAgent/conversations/<date>-<id>.jsonl` (folder
+0700, file 0600). It is opened with the first message and closed by New Conversation. One
+JSON object per line, each with `seq`, `time` and `type`:
+
+| `type` | Written by | Holds |
+|---|---|---|
+| `conversation_started` | ChatController | app version and build, macOS version, conversation id |
+| `user_message` | ChatController | the text as sent |
+| `request` | AgentRunner | `settings` (the body minus `messages`: system prompt, tools, model, effort...) only when they change; `newMessages` since the last request; `messageCount`, `bodyBytes` |
+| `response` | AgentRunner | `content` as assembled from the stream (thinking included), `stopReason`, `stopDetails`, `model`, `usage`, `costUSD`, `durationMS` |
+| `response_failed` | AgentRunner | the error and any `partialContent` |
+| `tool_call` / `tool_result` | AgentRunner | input; output as sent to Claude, `isError`, `durationMS` |
+| `card_posted` / `card_resolved` | ChatController | everything the card shows; the user's answer |
+| `notice`, `user_stopped`, `stop`, `conversation_ended` | both | what the chat showed, Stop, why the loop ended (with totals) |
+
+Replaying `newMessages` across the `request` lines rebuilds the exact `messages` array each
+request sent. The API key never reaches the log. Thinking is not displayed (its text is
+omitted by default), so the transcript can be quiet between tool calls; the system prompt
+asks for a one-line note before each tool call.
 
 ## Agent tools: runner side (M5)
 
