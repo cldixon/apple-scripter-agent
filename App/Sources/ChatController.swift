@@ -1,6 +1,8 @@
 import AgentCore
 import Foundation
 import Observation
+import os
+import Shared
 
 /// One row in the chat transcript.
 struct ChatItem: Identifiable {
@@ -25,7 +27,8 @@ struct ChatItem: Identifiable {
     var discarded = false
 }
 
-/// Runs the agent for the chat screen. The conversation lives in memory only.
+/// Runs the agent for the chat screen. The conversation lives in memory; a complete record of
+/// it is written to a `ConversationLog` file as it happens (see `ConversationLogs`).
 @MainActor
 @Observable
 final class ChatController {
@@ -48,6 +51,9 @@ final class ChatController {
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var responseStart = 0
     @ObservationIgnored private var openAssistantIndex: Int?
+    /// The current conversation's log, created with its first message.
+    @ObservationIgnored private var log: ConversationLog?
+    @ObservationIgnored private let logger = Logger(subsystem: Identifiers.logSubsystem, category: "chat")
 
     init(settings: AgentSettings, catalog: CatalogController? = nil) {
         self.settings = settings
@@ -55,7 +61,16 @@ final class ChatController {
         interactions.onPost = { [weak self] id in
             self?.appendCard(id)
         }
+        interactions.onResolve = { [weak self] id, answer, label in
+            var fields = answer.logJSON.objectValue ?? [:]
+            fields["cardID"] = .string(id.uuidString)
+            fields["label"] = .string(label)
+            self?.log?.record("card_resolved", fields)
+        }
     }
+
+    /// The current conversation's log file, if one has been started.
+    var logFileURL: URL? { log?.fileURL }
 
     var spendCapUSD: Double { settings.spendCapUSD }
 
@@ -74,6 +89,8 @@ final class ChatController {
         items.append(ChatItem(kind: .user, text: text))
         conversation.appendUserText(text)
         revision += 1
+        let log = currentLog()
+        log?.record("user_message", ["text": .string(text)])
 
         var configuration = settings.configuration
         configuration.systemPrompt = AgentToolbox.systemPrompt
@@ -81,7 +98,8 @@ final class ChatController {
         let runner = AgentRunner(
             transport: URLSessionTransport(apiKey: apiKey),
             tools: AgentToolbox.registry(context: context),
-            configuration: configuration
+            configuration: configuration,
+            log: log
         )
         let start = conversation
         let runGeneration = generation
@@ -96,6 +114,7 @@ final class ChatController {
 
     /// Stops the current run. The conversation keeps everything up to the stop.
     func stop() {
+        log?.record("user_stopped")
         task?.cancel()
         // Resume any card a tool is waiting on, so the loop can end.
         interactions.cancelAll()
@@ -109,6 +128,9 @@ final class ChatController {
     }
 
     func newConversation() {
+        log?.record("conversation_ended", ["reason": "new_conversation"])
+        log?.close()
+        log = nil
         task?.cancel()
         task = nil
         interactions.reset()
@@ -175,7 +197,28 @@ final class ChatController {
         revision += 1
     }
 
+    /// Opens the log for this conversation on its first message.
+    private func currentLog() -> ConversationLog? {
+        if let log { return log }
+        do {
+            let log = try ConversationLog(directory: ConversationLogs.directory)
+            var fields = ConversationLogs.environment
+            fields["conversationID"] = .string(log.id.uuidString)
+            log.record("conversation_started", fields)
+            logger.info("Conversation log: \(log.fileURL.path, privacy: .public)")
+            self.log = log
+            return log
+        } catch {
+            logger.error("Could not create the conversation log: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
     private func appendCard(_ id: UUID) {
+        log?.record("card_posted", [
+            "cardID": .string(id.uuidString),
+            "request": interactions.card(id)?.request.logJSON ?? .null
+        ])
         var item = ChatItem(kind: .card, text: "")
         item.cardID = id
         items.append(item)
@@ -184,6 +227,7 @@ final class ChatController {
     }
 
     private func appendNotice(_ text: String) {
+        log?.record("notice", ["text": .string(text)])
         items.append(ChatItem(kind: .notice, text: text))
         revision += 1
     }

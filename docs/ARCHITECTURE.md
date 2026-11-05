@@ -66,6 +66,11 @@ manifest.json ──decode──▶ AutomationManifest ──validate──▶ [
 - **Runner** supplies the real environment, hotkeys and the harness window: a small
   window the runner owns, which automations type into during harness tests. A harness test
   runs the automation directly, then posts its real hotkey, and compares the window's text.
+  The runner is a background (`LSUIElement`) app, and macOS only lets it take focus when the
+  app in front yields it, so the main app calls `NSApp.yieldActivation` before `test` and
+  `validateDraft`, and the runner yields back afterwards. If the window still lacks focus
+  after 1.5 s, the harness does not run the automation (its keystrokes would go to another
+  app) and reports a `(focus)` failure that blames the harness.
 - **App** sends `RunnerCommand`s (list, install, run, test, remove, pause) and shows the
   replies on the Catalog screen. It never runs automations itself.
 
@@ -178,7 +183,8 @@ ChatView ─▶ ChatController ─▶ AgentRunner ─▶ MessagesTransport ─�
   cap per conversation ($2.00 default), tool rounds per message (40), server-side fallback (on).
 - **Requests.** `anthropic-version: 2026-10-21`, so no `temperature`/`top_p`/`top_k`.
   `stream: true`, `max_tokens: 64000` (thinking counts toward it), `thinking: adaptive`
-  (thinking cannot be turned off on these models), `output_config.effort`, no `tool_choice`
+  with `display: "summarized"` (thinking cannot be turned off on these models; summaries
+  cost nothing extra and fill the conversation log, but the chat does not show them), `output_config.effort`, no `tool_choice`
   (forced choices are rejected), no assistant prefill. `fallbacks: "default"` with the
   `server-side-fallback-2026-07-01` beta re-runs a request a safety classifier declines.
   Tools carry `eager_input_streaming: true`; their input is parsed strictly and checked
@@ -202,9 +208,27 @@ ChatView ─▶ ChatController ─▶ AgentRunner ─▶ MessagesTransport ─�
   and 1.25x input for cache writes. A response served by another model (a fallback) is priced
   as Opus 5.5 unless it is Sonnet 5.5, so the estimate errs high.
 
-Conversations live in memory only. Thinking is not displayed (its text is omitted by
-default), so the transcript can be quiet between tool calls; the system prompt asks for a
-one-line note before each tool call.
+Conversations live in memory and cannot be resumed, but each one is recorded as it happens
+by a `ConversationLog` (AgentCore) in
+`~/Library/Application Support/AutomationAgent/conversations/<date>-<id>.jsonl` (folder
+0700, file 0600). It is opened with the first message and closed by New Conversation. One
+JSON object per line, each with `seq`, `time` and `type`:
+
+| `type` | Written by | Holds |
+|---|---|---|
+| `conversation_started` | ChatController | app version and build, macOS version, conversation id |
+| `user_message` | ChatController | the text as sent |
+| `request` | AgentRunner | `settings` (the body minus `messages`: system prompt, tools, model, effort...) only when they change; `newMessages` since the last request; `messageCount`, `bodyBytes` |
+| `response` | AgentRunner | `content` as assembled from the stream (thinking included), `stopReason`, `stopDetails`, `model`, `usage`, `costUSD`, `durationMS` |
+| `response_failed` | AgentRunner | the error and any `partialContent` |
+| `tool_call` / `tool_result` | AgentRunner | input; output as sent to Claude, `isError`, `durationMS` |
+| `card_posted` / `card_resolved` | ChatController | everything the card shows; the user's answer |
+| `notice`, `user_stopped`, `stop`, `conversation_ended` | both | what the chat showed, Stop, why the loop ended (with totals) |
+
+Replaying `newMessages` across the `request` lines rebuilds the exact `messages` array each
+request sent. The API key never reaches the log. Thinking summaries appear in the log but
+not in the chat, so the transcript can be quiet between tool calls; the system prompt
+asks for a one-line note before each tool call.
 
 ## Agent tools: runner side (M5)
 
@@ -322,7 +346,10 @@ everything; `EchoTool` stays in AgentCore for its tests).
   no report since it was last written, or failed; otherwise it shows the install card: name,
   id, trigger, each step with its key fields and its script in full, other files, declared
   permissions, `destructive` in red (Approve then asks a second time) and the validation
-  report. Approve is disabled without a passing report. After approval it sends
+  report. Approve is disabled without a passing report. One exception: when the report has
+  no errors and only harness tests failed (`TestReport.failsOnlyHarnessTests`) and the
+  automation is not destructive, the card offers Install Anyway behind a warning, since the
+  harness itself can be at fault. After approval it sends
   `installDraft` and refreshes the Catalog.
 - **fetch_url** accepts only https on developer.apple.com, support.apple.com,
   macosxautomation.com, www.macosxautomation.com and ss64.com, refuses redirects that leave

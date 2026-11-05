@@ -30,6 +30,16 @@ public struct TestReport: Codable, Sendable, Equatable {
     public var passed: Bool {
         !ManifestValidator.hasErrors(issues) && results.allSatisfy(\.passed)
     }
+
+    /// No validation errors, and every failing result is a harness test (the runner names
+    /// them `tests[N] harness ...`). The harness itself can be at fault, so the person may
+    /// choose to install anyway.
+    public var failsOnlyHarnessTests: Bool {
+        let failures = results.filter { !$0.passed }
+        return !ManifestValidator.hasErrors(issues)
+            && !failures.isEmpty
+            && failures.allSatisfy { $0.name.contains(" harness") }
+    }
 }
 
 /// Runs a manifest's unit tests against `RecordingEnvironment`. Harness tests need the

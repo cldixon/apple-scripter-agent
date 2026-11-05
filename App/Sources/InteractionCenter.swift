@@ -55,6 +55,12 @@ struct InstallApproval: Sendable {
     var canApprove: Bool {
         report?.passed == true
     }
+
+    /// Only harness tests failed, so the person may install anyway after a warning. Never for
+    /// a destructive automation.
+    var canInstallAnyway: Bool {
+        !canApprove && !destructive && report?.failsOnlyHarnessTests == true
+    }
 }
 
 /// What a card asks.
@@ -94,6 +100,8 @@ final class InteractionCenter {
 
     /// Called when a card is posted, so the chat can place it in the transcript.
     @ObservationIgnored var onPost: (@MainActor (UUID) -> Void)?
+    /// Called when a card is answered, with the answer and the label the card shows.
+    @ObservationIgnored var onResolve: (@MainActor (UUID, InteractionAnswer, String) -> Void)?
     @ObservationIgnored private var waiting: [UUID: CheckedContinuation<InteractionAnswer, Never>] = [:]
 
     func card(_ id: UUID) -> InteractionCard? {
@@ -157,6 +165,7 @@ final class InteractionCenter {
     private func resolve(_ id: UUID, with answer: InteractionAnswer, label: String) {
         guard let continuation = waiting.removeValue(forKey: id) else { return }
         cards[id]?.resolution = label
+        onResolve?(id, answer, label)
         continuation.resume(returning: answer)
     }
 }

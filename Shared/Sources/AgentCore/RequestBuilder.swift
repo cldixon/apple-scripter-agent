@@ -70,7 +70,9 @@ public enum RequestBuilder {
             "max_tokens": .int(configuration.maxTokens),
             "stream": true,
             "system": .array([systemBlock]),
-            "thinking": ["type": "adaptive"],
+            // Summaries cost nothing extra; the chat does not show them, but they make the
+            // conversation log readable between tool calls.
+            "thinking": ["type": "adaptive", "display": "summarized"],
             "output_config": outputConfig,
             "cache_control": ephemeral,
             "messages": .array(messages.map(\.json))

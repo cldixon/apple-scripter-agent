@@ -39,8 +39,10 @@ struct CatalogView: View {
                     get: { catalog.isPaused },
                     set: { paused in Task { await catalog.setPaused(paused) } }
                 ))
-                Button("Install Date Example") { Task { await catalog.installDateExample() } }
-                Button("Install Manifest…") { Task { await catalog.installFromFile() } }
+                Menu("Install", systemImage: "plus") {
+                    Button("Date Example") { Task { await catalog.installDateExample() } }
+                    Button("Manifest File…") { Task { await catalog.installFromFile() } }
+                }
                 Button("Refresh", systemImage: "arrow.clockwise") { Task { await catalog.refresh() } }
             }
         }
@@ -266,17 +268,28 @@ private struct TestsSection: View {
     }
 }
 
+/// The latest run, with the earlier ones behind a disclosure.
 private struct RecentRunsSection: View {
     let runs: [RunRecord]
+    @State private var showsEarlier = false
 
     var body: some View {
         Section("Recent runs") {
-            if runs.isEmpty {
-                Text("No runs yet.").foregroundStyle(.secondary)
-            } else {
-                ForEach(runs.prefix(10)) { run in
-                    RunRow(run: run)
+            if let latest = runs.first {
+                RunRow(run: latest)
+                let earlier = runs.dropFirst()
+                if !earlier.isEmpty {
+                    DisclosureGroup(
+                        "\(earlier.count) earlier \(earlier.count == 1 ? "run" : "runs")",
+                        isExpanded: $showsEarlier
+                    ) {
+                        ForEach(earlier) { run in
+                            RunRow(run: run)
+                        }
+                    }
                 }
+            } else {
+                Text("No runs yet.").foregroundStyle(.secondary)
             }
         }
     }

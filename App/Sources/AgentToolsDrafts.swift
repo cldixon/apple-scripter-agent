@@ -118,7 +118,8 @@ struct ValidateTool: AgentTool {
     let description = """
         Validates a draft: static checks, script compilation, unit tests and harness tests (the \
         runner's test window may appear briefly). Call it after every write_draft. A draft must \
-        pass, with no errors and every test passing, before request_install.
+        pass, with no errors and every test passing, before request_install; the one exception \
+        is a draft whose only failures are harness tests (see request_install).
         """
 
     let context: ToolContext
@@ -142,7 +143,11 @@ struct RequestInstallTool: AgentTool {
         Asks the user to approve installing a validated draft, showing them its trigger, every \
         step and script, permissions and the validation report, and waits for their answer. On \
         approval the draft is installed and the install report returned; otherwise their reason. \
-        Call it only after validate passed for the draft as last written.
+        Call it only after validate passed for the draft as last written, or when the only \
+        failures are harness tests and you have evidence the automation itself is right (its \
+        step outputs are correct and permissions are granted). Then say in the summary that the \
+        harness test failed and why you think the automation still works; the person can choose \
+        Install Anyway. Not allowed for a destructive automation.
         """
 
     let context: ToolContext
@@ -163,10 +168,10 @@ struct RequestInstallTool: AgentTool {
         guard let report = draft.report else {
             throw ToolError("Draft \"\(id)\" has not been validated since it was last written. Call validate first.")
         }
-        guard report.passed else {
+        let approval = InstallPreview.make(draftID: id, summary: summary, draft: draft)
+        guard approval.canApprove || approval.canInstallAnyway else {
             throw ToolError("Draft \"\(id)\" failed its last validation. Fix it, write it again and validate.")
         }
-        let approval = InstallPreview.make(draftID: id, summary: summary, draft: draft)
         switch await context.interactions.ask(.install(approval)) {
         case .approved, .answered:
             break
