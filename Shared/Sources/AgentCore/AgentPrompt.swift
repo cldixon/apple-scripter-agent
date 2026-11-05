@@ -44,7 +44,8 @@ public enum AgentPrompt {
         "clock" (UTC) or starting "clipboard".
         - A harness test for anything that types or pastes text: \
         `{"kind": "harness", "expectText": "..."}`; the runner fires the automation into its own \
-        test window and compares the window's text.
+        test window and compares the window's text. expectText is a template rendered when the \
+        test runs, so date-dependent output is testable: `"expectText": "{{today:yyyy-MM-dd}}"`.
 
         # Permissions and safety
         - Declare permissions honestly: `automation:<bundle id>` for every app a script \

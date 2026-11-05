@@ -41,7 +41,8 @@ struct RootView: View {
             .navigationSplitViewColumnWidth(min: 170, ideal: 190)
             .safeAreaInset(edge: .bottom) {
                 RunnerStatusBadge()
-                    .padding(10)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 14)
             }
         } detail: {
             detail(for: navigator.selection ?? .chat)
@@ -74,8 +75,8 @@ struct RunnerStatusBadge: View {
                 .frame(width: 8, height: 8)
             Text(runner.isHealthy ? "Runner connected" : "Runner not connected")
                 .font(.caption)
-            Spacer()
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

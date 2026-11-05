@@ -158,19 +158,23 @@ struct ChatUsageFooter: View {
 
     var body: some View {
         HStack {
-            Text(
-                "Tokens: \(usage.totalInputTokens.formatted()) in "
-                    + "(\(usage.cacheReadInputTokens.formatted()) cached), "
-                    + "\(usage.outputTokens.formatted()) out"
-            )
+            Text(tokenSummary)
             Spacer()
-            Text("Cost: \(Self.dollars(costUSD)) of \(Self.dollars(capUSD)) cap")
+            Text("Cost: \(Self.dollars(costUSD)) of \(Self.dollars(capUSD)) spend cap")
                 .foregroundStyle(costUSD >= capUSD ? Color.orange : Color.secondary)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
+    }
+
+    private var tokenSummary: String {
+        let input = usage.totalInputTokens
+        let output = usage.outputTokens
+        guard input + output > 0 else { return "No tokens used yet" }
+        return "\(input.formatted()) input tokens (\(usage.cacheReadInputTokens.formatted()) cached) · "
+            + "\(output.formatted()) output tokens"
     }
 
     private static func dollars(_ amount: Double) -> String {
