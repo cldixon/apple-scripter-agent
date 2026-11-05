@@ -17,7 +17,7 @@ This repo follows its milestones (M0–M6).
 | M3 | Catalog: git versions, SQLite index, enable/disable, rollback | Done |
 | M4 | Claude client and chat | Done |
 | M5 | Agent tools and reference library | Done |
-| M6 | Monitoring: failure streaks, broken status, notifications, Fix with Agent | In progress |
+| M6 | Monitoring: failure streaks, broken status, notifications, Fix with Agent | Done |
 
 ## Quick start (macOS 26, Xcode 26)
 
