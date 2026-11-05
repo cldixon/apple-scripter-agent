@@ -81,9 +81,34 @@ enum SystemActions {
         }
     }
 
+    /// Presses a key combination (`pressKeys`) once the hotkey's modifiers are released.
+    static func press(_ combo: KeyCombo) async throws {
+        try requireAccessibility()
+        await waitForModifierRelease()
+        try press(keyCode: combo.keyCode, flags: eventFlags(for: combo.modifiers))
+    }
+
+    /// Copies the frontmost app's selection with ⌘C and returns it as text (`copySelection`).
+    /// Returns "" when the clipboard did not change within about a second (nothing selected)
+    /// or the copied item has no text.
+    static func copySelection() async throws -> String {
+        try requireAccessibility()
+        await waitForModifierRelease()
+        let before = NSPasteboard.general.changeCount
+        try press(keyCode: 0x08, flags: .maskCommand)
+        for _ in 0..<50 {
+            try await Task.sleep(for: .milliseconds(20))
+            if NSPasteboard.general.changeCount != before {
+                return NSPasteboard.general.string(forType: .string) ?? ""
+            }
+        }
+        return ""
+    }
+
     /// A hotkey fires while its modifiers are still held; typing then would turn letters into
-    /// shortcuts. Wait (briefly) until the user lets go.
-    private static func waitForModifierRelease() async {
+    /// shortcuts. Wait (briefly) until the user lets go. Also used before AppleScript and JXA
+    /// steps, whose `keystroke` and `key code` commands would otherwise combine with them.
+    static func waitForModifierRelease() async {
         let held: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
         for _ in 0..<50 {
             if CGEventSource.flagsState(.combinedSessionState).isDisjoint(with: held) { return }

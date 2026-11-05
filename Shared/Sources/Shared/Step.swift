@@ -27,10 +27,23 @@ public struct Step: Codable, Sendable, Equatable {
     public var body: Body
     /// Name under which later steps can reference this step's output (`"as"` in JSON).
     public var output: String?
-    /// Seconds before the step is abandoned. Defaults to `Step.defaultTimeout`.
+    /// Seconds before the step is abandoned. Defaults to `Step.defaultTimeout(for:)`.
     public var timeout: Double?
 
+    /// The default timeout of a primitive step. Other step types default to more; see
+    /// `defaultTimeout(for:)`.
     public static let defaultTimeout: Double = 10
+
+    /// Default seconds before a step is abandoned, by step type: primitives 10 (askText 300,
+    /// because a person is typing), AppleScript, JXA and shell 30, shortcuts 60.
+    public static func defaultTimeout(for body: Body) -> Double {
+        switch body {
+        case .primitive(.askText): 300
+        case .primitive, .accessibility: 10
+        case .applescript, .jxa, .shell: 30
+        case .shortcut: 60
+        }
+    }
 
     public init(_ body: Body, output: String? = nil, timeout: Double? = nil) {
         self.body = body
@@ -38,7 +51,7 @@ public struct Step: Codable, Sendable, Equatable {
         self.timeout = timeout
     }
 
-    public var effectiveTimeout: Double { timeout ?? Self.defaultTimeout }
+    public var effectiveTimeout: Double { timeout ?? Self.defaultTimeout(for: body) }
 
     /// Template strings this step's arguments contain, for static checks.
     public var templateStrings: [String] {
@@ -55,6 +68,7 @@ public struct Step: Codable, Sendable, Equatable {
         case type, action, output = "as", timeout
         case pattern, text, title, url, app, seconds
         case file, source, name, input
+        case keys, prompt, defaultValue = "default"
     }
 
     public init(from decoder: any Decoder) throws {
@@ -146,10 +160,16 @@ public enum Primitive: Sendable, Equatable {
     case openURL(String)
     case launchApp(String)
     case delay(seconds: Double)
+    /// Copies the frontmost app's selection (⌘C) and returns it as text.
+    case copySelection
+    /// Presses a key combination such as `cmd+shift+4` (see `KeyCombo`).
+    case pressKeys(String)
+    /// Asks the user for text in the runner's own panel. Cancel stops the run as skipped.
+    case askText(prompt: String, defaultValue: String?)
 
     public static let actionNames = [
         "formatDate", "typeText", "pasteText", "readClipboard", "writeClipboard",
-        "notify", "openURL", "launchApp", "delay"
+        "notify", "openURL", "launchApp", "delay", "copySelection", "pressKeys", "askText"
     ]
 
     public var actionName: String {
@@ -163,13 +183,16 @@ public enum Primitive: Sendable, Equatable {
         case .openURL: "openURL"
         case .launchApp: "launchApp"
         case .delay: "delay"
+        case .copySelection: "copySelection"
+        case .pressKeys: "pressKeys"
+        case .askText: "askText"
         }
     }
 
     /// Permissions this primitive needs to run.
     public var requiredPermissions: [Permission] {
         switch self {
-        case .typeText, .pasteText: [.accessibility]
+        case .typeText, .pasteText, .copySelection, .pressKeys: [.accessibility]
         default: []
         }
     }
@@ -181,12 +204,17 @@ public enum Primitive: Sendable, Equatable {
         case .notify(let title, let text): [title, text].compactMap(\.self)
         case .openURL(let url): [url]
         case .launchApp(let app): [app]
-        case .readClipboard, .delay: []
+        case .askText(let prompt, let defaultValue): [prompt, defaultValue].compactMap(\.self)
+        case .readClipboard, .delay, .copySelection, .pressKeys: []
         }
     }
 
     fileprivate init(from container: Step.Container) throws {
         let action = try container.decode(String.self, forKey: .action)
+        if let interactive = try Self.decodeInteractive(action, from: container) {
+            self = interactive
+            return
+        }
         switch action {
         case "formatDate":
             self = .formatDate(pattern: try container.decode(String.self, forKey: .pattern))
@@ -219,6 +247,23 @@ public enum Primitive: Sendable, Equatable {
         }
     }
 
+    /// The primitives that work with the frontmost app or the user, or nil for other actions.
+    private static func decodeInteractive(_ action: String, from container: Step.Container) throws -> Primitive? {
+        switch action {
+        case "copySelection":
+            return .copySelection
+        case "pressKeys":
+            return .pressKeys(try container.decode(String.self, forKey: .keys))
+        case "askText":
+            return .askText(
+                prompt: try container.decode(String.self, forKey: .prompt),
+                defaultValue: try container.decodeIfPresent(String.self, forKey: .defaultValue)
+            )
+        default:
+            return nil
+        }
+    }
+
     fileprivate func encode(to container: inout Step.EncodingContainer) throws {
         try container.encode(actionName, forKey: .action)
         switch self {
@@ -235,7 +280,12 @@ public enum Primitive: Sendable, Equatable {
             try container.encode(app, forKey: .app)
         case .delay(let seconds):
             try container.encode(seconds, forKey: .seconds)
-        case .readClipboard:
+        case .pressKeys(let keys):
+            try container.encode(keys, forKey: .keys)
+        case .askText(let prompt, let defaultValue):
+            try container.encode(prompt, forKey: .prompt)
+            try container.encodeIfPresent(defaultValue, forKey: .defaultValue)
+        case .readClipboard, .copySelection:
             break
         }
     }

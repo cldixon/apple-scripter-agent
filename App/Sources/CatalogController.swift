@@ -174,9 +174,12 @@ final class CatalogController {
             message = "Removed \(id)."
             testReports[id] = nil
         case .ran(let record):
-            message = record.outcome == .succeeded
-                ? "Ran \(record.automationID) in \(record.duration.formatted(.number.precision(.fractionLength(2)))) s."
-                : "\(record.automationID) failed: \(record.error ?? "unknown error")"
+            let seconds = record.duration.formatted(.number.precision(.fractionLength(2)))
+            switch record.outcome {
+            case .succeeded: message = "Ran \(record.automationID) in \(seconds) s."
+            case .skipped: message = "\(record.automationID) was skipped: \(record.error ?? "cancelled")."
+            case .failed: message = "\(record.automationID) failed: \(record.error ?? "unknown error")"
+            }
         case .tested(let report):
             testReports[report.automationID] = report
             message = report.passed ? "All tests passed for \(report.automationID)." : "Some tests failed."

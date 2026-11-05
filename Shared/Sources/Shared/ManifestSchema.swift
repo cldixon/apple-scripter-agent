@@ -52,11 +52,21 @@ public enum ManifestSchema {
           "properties": {
             "type": { "enum": ["primitive", "applescript", "jxa", "shell", "shortcut", "ax"] },
             "as": { "type": "string", "description": "Names this step's output for later {{name}} references." },
-            "timeout": { "type": "number", "exclusiveMinimum": 0, "default": 10 },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Seconds. Defaults: primitive 10 (askText 300); applescript/jxa/shell 30; shortcut 60."
+            },
             "action": {
               "enum": ["formatDate", "typeText", "pasteText", "readClipboard", "writeClipboard",
-                       "notify", "openURL", "launchApp", "delay"]
+                       "notify", "openURL", "launchApp", "delay", "copySelection", "pressKeys", "askText"]
             },
+            "keys": {
+              "type": "string",
+              "description": "pressKeys: modifiers (cmd, ctrl, opt, shift) and one key joined by +, e.g. cmd+shift+4."
+            },
+            "prompt": { "type": "string", "description": "askText: the question shown to the user." },
+            "default": { "type": "string", "description": "askText: text the field starts with." },
             "pattern": { "type": "string", "description": "formatDate: Unicode date pattern, e.g. yyyy-MM-dd." },
             "text": { "type": "string" },
             "title": { "type": "string" },
@@ -90,8 +100,43 @@ public enum ManifestSchema {
               "properties": {
                 "kind": { "const": "harness" },
                 "fire": { "enum": ["trigger", "handler"], "default": "trigger" },
+                "setupText": { "type": "string", "description": "Text the harness window starts with." },
+                "select": {
+                  "enum": ["all", "none"],
+                  "default": "none",
+                  "description": "all: select setupText before running; none: insertion point after it."
+                },
                 "expectText": { "type": "string" }
               }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "step"],
+              "additionalProperties": false,
+              "description": "Runs one script step for real, sandboxed: no network or Apple Events.",
+              "properties": {
+                "kind": { "const": "script" },
+                "step": { "type": "integer", "minimum": 0 },
+                "inputs": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" },
+                  "description": "Earlier outputs by name, passed as in a normal run; fixtures_dir is added."
+                },
+                "fixtures": {
+                  "type": "string",
+                  "description": "Folder copied to a temp folder: the cwd, HOME and fixtures_dir."
+                },
+                "expect": { "type": "string", "description": "Exact output; may use {{today:<pattern>}}." },
+                "expectContains": { "type": "string" },
+                "expectFiles": { "type": "array", "items": { "type": "string" } },
+                "expectMissing": { "type": "array", "items": { "type": "string" } }
+              },
+              "anyOf": [
+                { "required": ["expect"] },
+                { "required": ["expectContains"] },
+                { "required": ["expectFiles"] },
+                { "required": ["expectMissing"] }
+              ]
             }
           ]
         }

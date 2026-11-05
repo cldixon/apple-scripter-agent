@@ -1,7 +1,7 @@
 import Foundation
 import Shared
 
-/// Run Tests: static validation, compile checks, unit tests and harness tests, for an
+/// Run Tests: static validation, compile checks, unit, script and harness tests, for an
 /// installed automation or for a draft.
 extension RunnerCore {
     func test(id: String) async -> TestReport? {
@@ -18,6 +18,7 @@ extension RunnerCore {
         let issues = ManifestValidator.validate(manifest, folder: folder)
         var results = await compileResults(manifest, folder: folder)
         results += await UnitTestRunner.run(manifest, folder: folder)
+        results += await ScriptTestRunner.run(manifest, folder: folder)
         for (position, test) in manifest.tests.enumerated() {
             guard case .harness(var harnessTest) = test else { continue }
             if !postsHotkeys { harnessTest.fire = .handler }

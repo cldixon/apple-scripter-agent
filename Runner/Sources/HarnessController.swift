@@ -36,7 +36,7 @@ final class HarnessController {
 
         var results: [TestReport.Result] = []
 
-        textView.string = ""
+        prepare(textView, for: test)
         try? await Task.sleep(for: .milliseconds(400))
         let record = await perform()
         try? await Task.sleep(for: .milliseconds(300))
@@ -46,10 +46,11 @@ final class HarnessController {
 
         if test.fire == .trigger, case .hotkey(let hotkey) = manifest.trigger,
            let keyCode = KeyCodes.virtualKeyCode(for: hotkey.key) {
-            textView.string = ""
+            prepare(textView, for: test)
+            let initial = textView.string
             do {
                 try SystemActions.press(keyCode: keyCode, flags: SystemActions.eventFlags(for: hotkey.modifiers))
-                let typed = await waitForText(in: textView, timeout: .seconds(3))
+                let typed = await waitForText(in: textView, changedFrom: initial, timeout: .seconds(3))
                 results.append(compare(name: "\(name) (hotkey \(hotkey.displayString))", expected: expected,
                                        actual: typed, record: nil))
             } catch {
@@ -89,17 +90,31 @@ final class HarnessController {
         }
     }
 
-    /// Waits until the text view has content that stops changing, or the timeout passes.
-    private func waitForText(in textView: NSTextView, timeout: Duration) async -> String {
+    /// Waits until the text view's content differs from `initial` and stops changing, or the
+    /// timeout passes.
+    private func waitForText(in textView: NSTextView, changedFrom initial: String, timeout: Duration) async -> String {
         let deadline = ContinuousClock.now + timeout
-        var last = ""
+        var last = initial
         while ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(150))
             let current = textView.string
-            if !current.isEmpty, current == last { return current }
+            if current != initial, current == last { return current }
             last = current
         }
         return textView.string
+    }
+
+    /// Puts the test's `setupText` in the window and selects all of it, or puts the
+    /// insertion point after it.
+    private func prepare(_ textView: NSTextView, for test: ManifestTest.HarnessTest) {
+        textView.string = test.setupText ?? ""
+        let length = (textView.string as NSString).length
+        switch test.select {
+        case .all:
+            textView.setSelectedRange(NSRange(location: 0, length: length))
+        case .atEnd:
+            textView.setSelectedRange(NSRange(location: length, length: 0))
+        }
     }
 
     private func show() -> NSTextView {
