@@ -60,12 +60,20 @@ public enum ScriptTestSandbox {
         return result + "\""
     }
 
-    /// `path` with every symlink resolved (keeping `/private`), or `path` itself when it does
-    /// not exist. Unlike `URL.resolvingSymlinksInPath()`, this does not strip `/private`.
+    /// `path` with every symlink resolved (keeping `/private`). For a path that does not exist,
+    /// the nearest existing ancestor is resolved and the rest appended, so `/var/...` and
+    /// `/private/var/...` still compare equal. Unlike `URL.resolvingSymlinksInPath()`, this
+    /// does not strip `/private`.
     public static func canonicalPath(_ path: String) -> String {
-        guard let resolved = realpath(path, nil) else { return path }
-        defer { free(resolved) }
-        return String(cString: resolved)
+        if let resolved = realpath(path, nil) {
+            defer { free(resolved) }
+            return String(cString: resolved)
+        }
+        let url = URL(filePath: path)
+        let parent = url.deletingLastPathComponent().path
+        guard !parent.isEmpty, parent != path, parent != "/" else { return path }
+        let base = canonicalPath(parent)
+        return (base.hasSuffix("/") ? base : base + "/") + url.lastPathComponent
     }
 
     /// The per-user cache folder in `/private/var/folders` (`.../C/`), which system tools such
