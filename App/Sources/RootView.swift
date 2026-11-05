@@ -5,6 +5,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     case chat
     case catalog
     case runner
+    case setup
     case settings
 
     var id: Self { self }
@@ -14,6 +15,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .chat: "Chat"
         case .catalog: "Catalog"
         case .runner: "Runner"
+        case .setup: "Setup"
         case .settings: "Settings"
         }
     }
@@ -23,6 +25,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .chat: "bubble.left.and.text.bubble.right"
         case .catalog: "list.bullet.rectangle"
         case .runner: "gearshape.2"
+        case .setup: "checklist"
         case .settings: "gear"
         }
     }
@@ -58,6 +61,8 @@ struct RootView: View {
             CatalogView()
         case .runner:
             RunnerView()
+        case .setup:
+            SetupView()
         case .settings:
             SettingsView()
         }
