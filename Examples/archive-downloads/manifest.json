@@ -1,0 +1,16 @@
+{
+  "id": "archive-downloads",
+  "name": "Archive old downloads",
+  "description": "Moves files in ~/Downloads last modified more than 30 days ago into ~/Downloads/Archive/<year-month>/, never overwriting, and shows how many moved. Folders and hidden files stay where they are.",
+  "request": "Make a manual automation that moves files in ~/Downloads older than 30 days into ~/Downloads/Archive/<year-month>/.",
+  "trigger": { "type": "manual" },
+  "steps": [
+    { "type": "shell", "file": "scripts/archive-downloads.sh", "as": "report", "timeout": 120 },
+    { "type": "shell", "source": "print -r -- \"${AUTOMATION_VAR_report%%$'\\n'*}\"", "as": "summary" },
+    { "type": "primitive", "action": "notify", "title": "Downloads", "text": "{{summary}}" }
+  ],
+  "permissions": [],
+  "destructive": true,
+  "tests": [],
+  "version": 1
+}

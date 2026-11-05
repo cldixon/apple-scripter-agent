@@ -1,0 +1,17 @@
+{
+  "id": "copy-safari-link",
+  "name": "Copy Safari tab as Markdown link",
+  "description": "Copies Safari's front tab as [title](url) to the clipboard and shows a notification. Does nothing but notify when Safari has no open page.",
+  "request": "Make a shortcut that copies the current Safari tab as a Markdown link, like [Page title](https://url), to my clipboard and shows a notification.",
+  "trigger": { "type": "hotkey", "key": "K", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "jxa", "file": "scripts/front-tab.js", "as": "page", "timeout": 15 },
+    { "type": "jxa", "file": "scripts/markdown-link.js", "as": "link" },
+    { "type": "jxa", "file": "scripts/copy-if-any.js", "as": "message" },
+    { "type": "primitive", "action": "notify", "title": "Safari link", "text": "{{message}}" }
+  ],
+  "permissions": ["automation:com.apple.Safari"],
+  "destructive": false,
+  "tests": [],
+  "version": 1
+}

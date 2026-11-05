@@ -1,0 +1,18 @@
+{
+  "id": "paste-plain-text",
+  "name": "Paste as plain text, trimmed",
+  "description": "Pastes the clipboard as plain text with every line trimmed and blank lines removed. The clipboard's text is restored afterwards.",
+  "request": "Make ⌃⌥⌘V paste whatever is on my clipboard as plain text, with leading and trailing whitespace and blank lines removed.",
+  "trigger": { "type": "hotkey", "key": "V", "modifiers": ["ctrl", "opt", "cmd"] },
+  "steps": [
+    { "type": "primitive", "action": "readClipboard", "as": "clip" },
+    { "type": "jxa", "file": "scripts/clean.js", "as": "cleaned", "timeout": 10 },
+    { "type": "primitive", "action": "pasteText", "text": "{{cleaned}}" }
+  ],
+  "permissions": ["accessibility"],
+  "destructive": false,
+  "tests": [
+    { "kind": "unit", "step": 0, "clipboard": "  Hello  \n\n\tworld \n", "expect": "  Hello  \n\n\tworld \n" }
+  ],
+  "version": 1
+}
