@@ -3,13 +3,15 @@ import SwiftUI
 
 /// The approval card for `request_install`: everything that will be installed, the last
 /// validation report, and Approve (enabled only after a passing validation; a destructive
-/// automation needs a second confirmation) or Decline.
+/// automation needs a second confirmation) or Decline. When only harness tests failed, Install
+/// Anyway is offered behind a warning.
 struct InstallCard: View {
     let approval: InstallApproval
     let cardID: UUID
     let pending: Bool
     let center: InteractionCenter
     @State private var confirmingDestructive = false
+    @State private var confirmingInstallAnyway = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -31,6 +33,23 @@ struct InstallCard: View {
             HStack {
                 Button("Yes, Install It") { center.approve(cardID, label: "Approved (destructive, confirmed)") }
                 Button("Cancel") { confirmingDestructive = false }
+            }
+        } else if confirmingInstallAnyway {
+            Text(
+                "A harness test failed, so typing or pasting into a window has not been checked. "
+                    + "Install only if you will try it yourself right away."
+            )
+                .foregroundStyle(.orange)
+            HStack {
+                Button("Yes, Install Anyway") {
+                    center.approve(cardID, label: "Approved despite a failing harness test")
+                }
+                Button("Cancel") { confirmingInstallAnyway = false }
+            }
+        } else if approval.canInstallAnyway {
+            HStack {
+                Button("Install Anyway…") { confirmingInstallAnyway = true }
+                Text("Only the harness test failed.").font(.caption).foregroundStyle(.secondary)
             }
         } else {
             HStack {

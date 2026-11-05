@@ -43,7 +43,8 @@ extension InteractionRequest {
                 "rawManifest": .string(install.rawManifest),
                 "otherFiles": .array(install.otherFiles.map { .string($0.path) }),
                 "report": install.report.flatMap(JSONValue.init(encoding:)) ?? .null,
-                "canApprove": .bool(install.canApprove)
+                "canApprove": .bool(install.canApprove),
+                "canInstallAnyway": .bool(install.canInstallAnyway)
             ]
         case .setStatus(let status):
             [

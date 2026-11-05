@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Shared
 
@@ -29,11 +30,28 @@ struct RunnerClient: Sendable {
     /// Sends a command. Tests can take a while (they open the harness window), so the
     /// timeout is generous.
     func send(_ command: RunnerCommand, timeout: Double = 60) async throws -> RunnerReply {
+        if Self.opensTestHarness(command) {
+            await Self.yieldFocusToRunner()
+        }
         let payload = try XPCCoding.encode(command)
         let reply = try await call(payload: payload, timeout: timeout) { runner, payload, completion in
             runner.send(payload, reply: completion)
         }
         return try XPCCoding.decode(RunnerReply.self, from: reply)
+    }
+
+    private static func opensTestHarness(_ command: RunnerCommand) -> Bool {
+        switch command {
+        case .test, .validateDraft: true
+        default: false
+        }
+    }
+
+    /// The runner is a background app; macOS lets it take focus for its test window only when
+    /// the app in front yields it. Does nothing if this app is not in front.
+    @MainActor
+    private static func yieldFocusToRunner() {
+        NSApp.yieldActivation(toApplicationWithBundleIdentifier: Identifiers.runnerBundleID)
     }
 
     /// Sends one request and waits for the first of: the reply, a connection error, or the timeout.

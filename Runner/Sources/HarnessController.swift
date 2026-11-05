@@ -20,6 +20,13 @@ final class HarnessController {
         let textView = show()
         defer { hide(returningTo: previousApp) }
 
+        // The runner is a background app: macOS lets it take focus only when the app in front
+        // yields it (the main app does before validating). Without focus, typed text would go
+        // to whatever app is in front, so the automation is not run at all.
+        guard await waitForFocus(on: textView, timeout: .milliseconds(1500)) else {
+            return [.init(name: "\(name) (focus)", passed: false, message: Self.noFocusMessage)]
+        }
+
         let expected: String
         do {
             expected = try Template.render(test.expectText, variables: [:], now: Date())
@@ -62,6 +69,24 @@ final class HarnessController {
             passed: passed,
             message: passed ? "Window shows \"\(actual)\"" : "Expected \"\(expected)\", window shows \"\(actual)\""
         )
+    }
+
+    static let noFocusMessage = """
+        The test window could not take keyboard focus (another app kept it), so the automation \
+        was not run. This is a problem with the test harness, not the automation. Retry with \
+        the Automation Agent window in front.
+        """
+
+    /// Waits until the test window is the active app's key window with the text view focused.
+    private func waitForFocus(on textView: NSTextView, timeout: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while true {
+            if let window, NSApp.isActive, window.isKeyWindow, window.firstResponder === textView {
+                return true
+            }
+            if ContinuousClock.now >= deadline { return false }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 
     /// Waits until the text view has content that stops changing, or the timeout passes.
@@ -117,6 +142,8 @@ final class HarnessController {
 
     private func hide(returningTo previousApp: NSRunningApplication?) {
         window?.orderOut(nil)
-        previousApp?.activate()
+        guard let previousApp else { return }
+        NSApp.yieldActivation(to: previousApp)
+        previousApp.activate()
     }
 }

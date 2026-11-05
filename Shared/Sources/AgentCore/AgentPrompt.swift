@@ -64,7 +64,9 @@ public enum AgentPrompt {
         what is installed; check_permissions for what the runner may do; run_snippet to check \
         an assumption against the real app (the person approves each snippet).
         3. write_draft with the manifest and its files.
-        4. validate, read the report, fix the draft with write_draft, and repeat until it passes.
+        4. validate, read the report, fix the draft with write_draft, and repeat until it passes. \
+        If only harness tests keep failing while the step outputs are right, the harness may be \
+        at fault: stop changing a correct draft and go to step 5, explaining the failure.
         5. request_install with a one-paragraph summary; the person reviews and approves it.
         6. ask_user with kind "test" and concrete instructions ("Click in a text field and press \
         ⌃⌥⌘D; today's date should appear").

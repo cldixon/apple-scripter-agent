@@ -55,6 +55,12 @@ struct InstallApproval: Sendable {
     var canApprove: Bool {
         report?.passed == true
     }
+
+    /// Only harness tests failed, so the person may install anyway after a warning. Never for
+    /// a destructive automation.
+    var canInstallAnyway: Bool {
+        !canApprove && !destructive && report?.failsOnlyHarnessTests == true
+    }
 }
 
 /// What a card asks.
