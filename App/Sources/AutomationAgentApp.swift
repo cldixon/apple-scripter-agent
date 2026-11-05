@@ -32,8 +32,19 @@ struct AutomationAgentApp: App {
             .environment(apiKey)
             .environment(chat)
             .environment(navigator)
-            .task { await runner.onLaunch() }
+            .task { await launch() }
         }
         .defaultSize(width: 960, height: 640)
+    }
+
+    /// Starts the runner, lets Siri and Spotlight learn the installed automations, and opens
+    /// Setup instead of Chat while anything required is missing.
+    private func launch() async {
+        await runner.onLaunch()
+        AutomationAgentShortcuts.updateAppShortcutParameters()
+        let setupDone = SetupChecklist.requiredItemsDone(hasAPIKey: apiKey.hasKey, runner: runner)
+        if !setupDone && navigator.selection == .chat {
+            navigator.selection = .setup
+        }
     }
 }

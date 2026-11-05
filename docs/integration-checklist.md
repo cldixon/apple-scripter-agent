@@ -186,3 +186,29 @@ automation on ⌃⌥⌘D (remove `insert-iso-date` if it is installed).
 - [ ] Catalog > that automation > Fix with Agent: Chat opens with a message naming the automation
       and its errors; the agent reads it, proposes a corrected draft at the next version, validates
       it and asks you to approve. After approval the failure count is cleared and ⌃⌥⌘C works.
+
+## Sweep 2 — Mac integration
+
+- [ ] Fresh state (Runner screen > Unregister, quit the runner, remove Accessibility for it):
+      after onboarding the window opens on **Setup**, with the runner, ping and Accessibility
+      rows orange.
+- [ ] Press each fix button: Register (or Open Login Items), Ping, Allow… then grant it in
+      System Settings and choose Check Again. Every required row turns green and "Everything
+      required is done." appears. Quit and reopen: the app opens on Chat.
+- [ ] The Reference library row turns green; Open Notifications Settings opens System
+      Settings > Notifications.
+- [ ] Install the date example. In Shortcuts, search "Automation Agent": the Run Automation
+      action is listed. Add it, pick "Insert today's date" from the list (search by name works),
+      put the cursor in TextEdit and run the shortcut: the date is typed and the result is
+      "Ran Insert today's date.".
+- [ ] Disable the automation's prerequisite (turn off Accessibility for the runner) and run the
+      shortcut three times: Shortcuts shows "<name> failed: …" and stops; the Catalog shows
+      the failures.
+- [ ] Quit Automation Agent and run the shortcut again: it still works (the app launches in
+      the background) and no window comes forward, or note what does.
+- [ ] Spotlight: type "Run Insert" or "Automation Agent": the Run Automation shortcut appears
+      and runs.
+- [ ] Siri: "Run Insert today's date in Automation Agent" runs it. "Run an automation in
+      Automation Agent" asks which one.
+- [ ] Install a second automation, refresh the Catalog, then ask Siri for it by name: the new
+      name is recognised without rebuilding the app.

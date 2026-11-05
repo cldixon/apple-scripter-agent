@@ -382,6 +382,55 @@ Every run is already logged (`runs.jsonl` and the index's `runs` table). On top 
   draft with the same id and the next version through validate and approval. The system
   prompt has the same rule for fixing installed automations.
 
+## Shortcuts, Spotlight and Siri (Sweep 2)
+
+The main app declares App Intents (`App/Sources/Intents/`), so installed automations are
+available outside the app without per-automation code:
+
+- **`AutomationEntity`** is an installed automation: its manifest id, name, and trigger
+  summary as the subtitle. `AutomationEntityQuery` (`EntityStringQuery`) resolves ids,
+  suggests every automation and searches by name or id. Each lookup sends
+  `.listAutomations` to the runner over XPC; the app keeps no copy of the catalog.
+- **`RunAutomationIntent`** ("Run Automation") takes one automation and sends
+  `.run(id:)`. `openAppWhenRun` is false. It returns "Ran <name>." as both the value and
+  the dialog; a failed run (or an unreachable runner) throws, so Shortcuts shows the error
+  and stops the shortcut there. A skipped run (for example, the user cancelled a dialog)
+  returns "<name> was skipped.".
+- **`AutomationAgentShortcuts`** (`AppShortcutsProvider`) offers one App Shortcut with the
+  phrases "Run <automation> in Automation Agent", "Run <automation> with Automation Agent"
+  and "Run an automation in Automation Agent" (Siri then asks which). Spotlight shows the
+  same shortcut. `CatalogController` calls `updateAppShortcutParameters()` whenever it
+  receives the automation list, and the app calls it once at launch, so Siri learns new
+  names.
+
+The intent runs in the main app's process, which the system launches in the background if
+it is not running; the runner still does the work, so the run is logged with cause
+`manual` like a Catalog run. Xcode extracts the App Intents metadata
+(`Metadata.appintents`) automatically for an app target that imports AppIntents, so
+`project.yml` and `Info.plist` need nothing extra. The runner is not involved in App
+Intents: it is a background agent with no Shortcuts presence, and the XPC check that only
+the main app may connect still holds.
+
+## Setup checklist
+
+`SetupView` (sidebar item **Setup**) lists what automations need, each with live status and
+a button to fix it:
+
+| Item | Status from | Fix |
+| --- | --- | --- |
+| Anthropic API key | `APIKeyController.hasKey` | Opens Settings (onboarding still asks for the key first) |
+| Runner registered | `SMAppService.status` | Register, or Open Login Items when it needs approval |
+| Runner answers | the last ping | Ping |
+| Accessibility for the runner | `PingResponse.accessibilityTrusted` | Allow… (`.requestAccessibility`) |
+| Notifications (informational) | not observable from the app | Open Notifications settings |
+| Reference library (informational) | `.searchReference("AppleScript", 1)` finds a note | Check |
+
+The first four are required (`SetupChecklist.requiredItemsDone`). At launch, after the
+runner is registered and pinged, the app selects Setup instead of Chat while any of them is
+missing. Notifications have no check because the runner asks for permission the first time
+it posts one and there is no runner command that reports the setting; adding a
+`notificationStatus` permission to `check_permissions` would make it a real row.
+
 ## Known gaps
 
 - Harness tests need the runner to come to the front. macOS 14+ only lets it if the main

@@ -162,6 +162,7 @@ final class CatalogController {
         case .automations(let list, let paused):
             automations = list
             isPaused = paused
+            AutomationAgentShortcuts.updateAppShortcutParameters()
             if selection == nil || !list.contains(where: { $0.id == selection }) {
                 selection = list.first?.id
             }
