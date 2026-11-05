@@ -5,7 +5,7 @@ DERIVED_DATA := build/DerivedData
 APP          := $(DERIVED_DATA)/Build/Products/Debug/AutomationAgent.app
 XCODEBUILD   := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug -derivedDataPath $(DERIVED_DATA)
 
-.PHONY: help bootstrap check-xcode project build build-unsigned test lint format run verify clean
+.PHONY: help bootstrap check-xcode project build build-unsigned test lint format run verify release release-local clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -41,6 +41,12 @@ verify: ## Check the built app's bundle layout
 
 run: build verify ## Build, then launch the app
 	open $(APP)
+
+release: check-xcode ## Signed, notarized, stapled DMG in build/release (docs/RELEASING.md)
+	scripts/release.sh
+
+release-local: check-xcode ## Signed DMG without notarizing, for local testing
+	scripts/release.sh --skip-notarize
 
 clean: ## Remove build output and the generated project
 	rm -rf build $(PROJECT) Shared/.build
