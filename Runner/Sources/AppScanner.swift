@@ -9,6 +9,9 @@ struct FoundApp: Sendable, Equatable {
     var scriptable: Bool
     /// `OSAScriptingDefinition` is "dynamic": reading the dictionary launches the app.
     var dynamicDictionary = false
+    /// The `.sdef` file the app ships in its Resources, if any. Only these are read in the
+    /// background: reading any other app's dictionary (through `sdef`) can launch the app.
+    var staticDictionary: URL?
 
     /// Changes whenever the app is updated, so its dictionary is read again.
     var fingerprint: String { "\(bundleID)@\(version)" }
@@ -84,8 +87,17 @@ enum AppScanner {
             url: url,
             version: "\(short) (\(build))",
             scriptable: enabled || info["OSAScriptingDefinition"] != nil || isAddition,
-            dynamicDictionary: (info["OSAScriptingDefinition"] as? String) == "dynamic"
+            dynamicDictionary: (info["OSAScriptingDefinition"] as? String) == "dynamic",
+            staticDictionary: staticDictionaryURL(bundle: url, info: info)
         )
+    }
+
+    /// `Contents/Resources/<OSAScriptingDefinition>` when that file exists.
+    private static func staticDictionaryURL(bundle: URL, info: [String: Any]) -> URL? {
+        guard let name = info["OSAScriptingDefinition"] as? String, name != "dynamic",
+              !name.contains("/") else { return nil }
+        let file = bundle.appending(path: "Contents/Resources/\(name)")
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
     }
 
     /// Finds `app` by name ("Mail", "Mail.app"), bundle id or path. `hint` is the URL Launch

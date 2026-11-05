@@ -98,7 +98,13 @@ actor ReferenceService {
         if let cached = dictionaries[app.bundleID], cached.fingerprint == app.fingerprint {
             return cached.dictionary
         }
-        guard let dictionary = try? await ReferenceSources.dictionary(at: app.url), !dictionary.isEmpty else {
+        // Prefer the app's own .sdef file; fall back to `sdef`, which may launch the app (the
+        // agent asked about this app specifically, so that is acceptable here).
+        var dictionary = app.staticDictionary.flatMap { try? ReferenceSources.staticDictionary(at: $0) }
+        if dictionary?.isEmpty ?? true {
+            dictionary = try? await ReferenceSources.dictionary(at: app.url)
+        }
+        guard let dictionary, !dictionary.isEmpty else {
             throw ReferenceServiceError.notScriptable(app.name)
         }
         dictionaries[app.bundleID] = (app.fingerprint, dictionary)
@@ -191,8 +197,10 @@ actor ReferenceService {
     }
 
     private func addDictionaries(to library: ReferenceLibrary) async {
-        // Apps with a dynamic dictionary would be launched by sdef; introspect_app still reads them.
-        var apps = AppScanner.scan().filter { $0.scriptable && !$0.dynamicDictionary }
+        // Only apps that ship a static .sdef file, read directly: running `sdef` on any other app
+        // (dynamic dictionaries, or apps that are only NSAppleScriptEnabled) launches it.
+        // introspect_app still reads those on demand.
+        var apps = AppScanner.scan().filter { $0.staticDictionary != nil }
         if let additions = AppScanner.info(at: AppScanner.standardAdditions) { apps.append(additions) }
         var origins: Set<String> = []
         for app in apps {
@@ -200,7 +208,15 @@ actor ReferenceService {
             origins.insert(origin)
             guard (try? library.fingerprint(origin: origin)) != app.fingerprint else { continue }
             do {
-                let dictionary = try await ReferenceSources.dictionary(at: app.url)
+                let dictionary: SdefDictionary
+                if let file = app.staticDictionary {
+                    dictionary = try ReferenceSources.staticDictionary(at: file)
+                } else if app.url.pathExtension == "osax" {
+                    // A scripting addition is not an app; `sdef` on it launches nothing.
+                    dictionary = try await ReferenceSources.dictionary(at: app.url)
+                } else {
+                    continue
+                }
                 // An empty dictionary is stored too (no chunks), so the app is not read again until it changes.
                 let entries = dictionary.isEmpty ? [] : Self.entries(dictionary, app: app)
                 try library.replace(origin: origin, fingerprint: app.fingerprint, entries: entries)

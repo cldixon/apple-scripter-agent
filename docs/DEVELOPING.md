@@ -54,6 +54,15 @@ signed processes, Accessibility) cannot run in CI; it lives in
 
 ## Troubleshooting
 
+- **`xcodebuild requires Xcode, but active developer directory … is a command line tools
+  instance`.** Point the command-line tools at Xcode with
+  `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, then run
+  `sudo xcodebuild -license accept` and `xcodebuild -runFirstLaunch`. `make bootstrap` and
+  `make build` check this first (`scripts/check-xcode.sh`).
+- **Other apps opened by themselves after the first launch** (builds before this fix). The
+  reference library ran `sdef` on every scriptable app, which launches apps that don't ship
+  a static dictionary. It now reads only `.sdef` files bundled inside apps and never runs
+  `sdef` in the background; quit any apps it opened.
 - **Runner shows "Needs approval".** Open System Settings > General > Login Items and
   allow "Automation Agent Runner" (the Runner screen has a button that opens it).
 - **Ping fails with a connection error.** Check that the runner is registered and the

@@ -24,7 +24,17 @@ enum ReferenceSources {
                 result.timedOut ? "sdef timed out" : reason.isEmpty ? "no scripting dictionary" : reason
             )
         }
-        var dictionary = try SdefDictionary.parse(Data(result.output.utf8))
+        return try parseWithIncludes(Data(result.output.utf8))
+    }
+
+    /// Parses an app's own `.sdef` file directly. Never runs `sdef`, so it never launches the app.
+    static func staticDictionary(at file: URL) throws -> SdefDictionary {
+        try parseWithIncludes(Data(contentsOf: file))
+    }
+
+    /// Parses sdef XML and merges the standard suites it pulls in with `xi:include`.
+    private static func parseWithIncludes(_ data: Data) throws -> SdefDictionary {
+        var dictionary = try SdefDictionary.parse(data)
         for href in dictionary.includes {
             guard let included = URL(string: href), included.isFileURL,
                   let data = try? Data(contentsOf: included),

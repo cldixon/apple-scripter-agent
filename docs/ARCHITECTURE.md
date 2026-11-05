@@ -230,7 +230,7 @@ Prefixes: the bundled file name (`recipes/text-item-delimiters`), `sdef/<bundle 
 | Source | Origin key | Fingerprint (skip when unchanged) |
 | --- | --- | --- |
 | `Reference/*.md`, bundled in the runner's resources | `bundled:<file>` | SHA-256 of the file |
-| `/usr/bin/sdef` of every scriptable app, Finder, System Events and Standard Additions | `sdef:<bundle id>` | bundle id + version + build |
+| the static `.sdef` file each app ships (`OSAScriptingDefinition` in `Contents/Resources`), read directly; Standard Additions via `sdef` | `sdef:<bundle id>` | bundle id + version + build |
 | `man -P cat` for osascript, shortcuts, defaults, launchctl, pmset, networksetup, scutil, mdfind, plutil | `man:<name>` | macOS version string |
 | installed automations (manifest + text files) | `example:<id>` | SHA-256 of the contents |
 
@@ -251,8 +251,9 @@ the `ReferenceService` actor; `sdef` and `man` run as child processes (`ScriptRu
 with timeouts). The runner's menu shows one status line (chunks, last build, problems).
 
 **introspect_app.** Resolves a name ("Mail", "Mail.app"), bundle id, path or "Standard
-Additions" to an app, runs `sdef` (cached per bundle id and version, and the library's copy
-refreshed), follows `xi:include`s of standard suites, and renders compact markdown: suites →
+Additions" to an app, reads its static `.sdef` file, or runs `sdef` when it has none, which
+can launch the app (only on demand, never in the background build; cached per bundle id and
+version, and the library's copy refreshed), follows `xi:include`s of standard suites, and renders compact markdown: suites →
 classes (plural, inherits, properties with type and access, elements, responds-to), commands
 (direct parameter, parameters, result) and enumerations. A query keeps suites, classes,
 commands and enumerations whose names or descriptions contain it (classes also match on
